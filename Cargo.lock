@@ -406,6 +406,7 @@ name = "kan-ban-jam-file"
 version = "0.1.0"
 dependencies = [
  "reqwest",
+ "serde_json",
 ]
 
 [[package]]
