@@ -73,24 +73,12 @@ fn main() -> RUSE {
     let mut buff: String = "".to_string();
     let bytes = data_file.read_to_string(&mut buff)?;
     println!("loaded {bytes} bytes from files/data.json");
-    let structure: KanBansJammed = serde_json::from_str(&buff.as_str()).unwrap_or({
-        println!("error deserializing; starting with empty workspace");
-        KanBansJammed::new()
-    });
-
+    println!("loaded into buff: {buff}");
+    let structure: KanBansJammed = serde_json::from_str(&buff)?;
+    println!("structure: {structure:?}");
     println!("shutting down; saving workspace to {}", DATA_FILE_PATH);
     let serialized = serde_json::to_string(&structure).expect("should have been able to serialize");
     fs::write(DATA_FILE_PATH, serialized).expect(format!("should have been able to save to {}", DATA_FILE_PATH).as_str());
     println!("saved serialized to {}", DATA_FILE_PATH);
     OK
 }
-
-/*
-    let first_post = Post::new("arbitrary".to_string(), "random".to_string(), generate_uuid());
-    println!("Hello, {}!", first_post.identifier);
-    println!("name: {}, creator: {}", first_post.name, first_post.creator);
-    let json = serde_json::to_string(&first_post).expect("error; couldn't serialize");
-    println!("as json: {}", json);
-    let clone_from_serialized: Post = serde_json::from_str(&json).expect("error; couldn't deserialize");
-    println!("after deserializing: {clone_from_serialized:?}");
-*/
