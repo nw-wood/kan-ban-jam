@@ -5,6 +5,24 @@ use std::fs::File;
 type RUSE = Result<(), Error>; //R<US,E>
 const OK: Result<(), Error> = Ok(());
 
+struct KanBanJam {
+    collections: Vec<KanBanBoard>,
+}
+
+struct KanBanBoard {
+    uuid: String,
+    creator: String,
+    columns: Vec<String>,
+    stickies: Vec<Sticky>
+}
+
+struct Sticky {
+    uuid: String,
+    creator: String,
+    title: String,
+    summary: String,
+}
+
 fn main() -> RUSE {
 
     println!("trying to load files/data.json");
