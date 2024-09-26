@@ -1,0 +1,13 @@
+/home/wood/Code/kan-ban-jam/target/x86_64-unknown-linux-gnu/debug/deps/libtracing-d0cee00c76551267.rmeta: /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/lib.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/macros.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/dispatcher.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/field.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/instrument.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/level_filters.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/span.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/stdlib.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/subscriber.rs
+
+/home/wood/Code/kan-ban-jam/target/x86_64-unknown-linux-gnu/debug/deps/tracing-d0cee00c76551267.d: /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/lib.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/macros.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/dispatcher.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/field.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/instrument.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/level_filters.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/span.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/stdlib.rs /home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/subscriber.rs
+
+/home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/lib.rs:
+/home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/macros.rs:
+/home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/dispatcher.rs:
+/home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/field.rs:
+/home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/instrument.rs:
+/home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/level_filters.rs:
+/home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/span.rs:
+/home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/stdlib.rs:
+/home/wood/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tracing-0.1.40/src/subscriber.rs:

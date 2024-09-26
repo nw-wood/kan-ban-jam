@@ -1,84 +1,116 @@
+use env_home;
 use std::fs;
-use std::io::{Error, Read};
-use std::fs::File;
-use rand::RngCore;
-use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use serde_json;
 
-type RUSE = Result<(), Error>; //R<US,E>
-const OK: Result<(), Error> = Ok(());
-
-const DATA_FILE_PATH: &str = "files/data.json";
-
-#[derive(Debug, Serialize, Deserialize)]
-struct KanBansJammed {
-    collections: Vec<Collection>,
+#[derive(Serialize, Deserialize, Debug)]
+struct Board {
+    name: String,
+    items: Vec<Item>,
+    statuses: Vec<String>,
 }
+impl Board {
 
-impl KanBansJammed {
-    fn new() -> Self {
+    fn new(name: &str, statuses: Vec<String>) -> Self {
         Self {
-            collections: vec![],
+            name: name.to_string(),
+            items: vec![],
+            statuses,
         }
     }
-}
-#[derive(Debug, Serialize, Deserialize)]
-struct Collection {
-    uuid: String,
-    creator: String,
-    columns: Vec<String>,
-    stickies: Vec<Sticky>
-}
-#[derive(Debug, Serialize, Deserialize)]
-struct Sticky {
-    uuid: String,
-    creator: String,
-    title: String,
-    summary: String,
-}
-fn generate_uuid() -> Uuid {
-    let mut rng = rand::thread_rng();
-    let mut bytes: [u8; 16] = [0;16];
-    rng.fill_bytes(&mut bytes);
-    let uuid = Uuid::from_bytes(bytes);
-    uuid
-}
-fn main() -> RUSE {
 
-    println!("trying to load files/data.json");
+    fn open_from_file(path: &String) -> Self {
 
-    let mut data_file: File;
-    let open = File::open(DATA_FILE_PATH);
-    match open {
-        Ok(file) => data_file = file,
-        Err(e) => {
-            println!("{e}; couldn't open, creating instead");
-            let create = File::create_new(DATA_FILE_PATH);
-            match create {
-                Ok(file) => data_file = file,
-                Err(e) => {
-                    println!("{e}; couldn't create, making sure directory exists");
-                    let create_dir = fs::create_dir("files");
-                    match create_dir {
-                        Ok(_) => data_file = File::create_new(DATA_FILE_PATH)?,
-                        Err(_e) => panic!("{e}")
+        let file = fs::read_to_string(path);
+
+        if let Ok(contents) = file {
+
+            println!("read file; deserializing");
+            let value = serde_json::from_str(contents.as_str());
+
+            if let Ok(json) = value {
+                println!("loaded config");
+                json
+            } else {
+                println!("couldnt deserialize; new default");
+                Board::new("kan-ban-board", vec!["new".to_string(), "wip".to_string(), "review".to_string(), "done".to_string()])
+            }
+        } else {
+            println!("couldn't read file; new default");
+            Board::new("kan-ban-board", vec!["new".to_string(), "wip".to_string(), "review".to_string(), "done".to_string()])
+        }
+    }
+
+    fn save(&self, path: &String) {
+        match serde_json::to_string(&self) {
+            Ok(json) => {
+                match fs::write(&path, json) {
+                    Ok(_) => println!("saved board"),
+                    Err(e) => println!("couldn't save: {e}, config path: {path}"),
+                }
+            }
+            Err(e) => println!("couldn't serialize to JSON: {e}"),
+        }
+    }
+
+    fn add_item(&mut self, name: &str, contents: &str) {
+        let mut exists: bool = false;
+        for item in &self.items {
+            if item.name == name { exists = true }
+        }
+        if exists {
+            println!("can't add {name} because {name} already exists in the board");
+        } else { 
+            let item = Item::new(name, contents, self.statuses[0].as_str());
+            self.items.push(item);
+        }
+    }
+
+    fn promote_item(&mut self, name: &str) {
+        for item in &self.items {
+            if item.name == name.to_string() {
+                for status in &self.statuses {
+                    if item.status == status {
+
                     }
                 }
             }
         }
     }
+}
 
-    println!("data_file loaded; todo: deserialize contents");
-    let mut buff: String = "".to_string();
-    let bytes = data_file.read_to_string(&mut buff)?;
-    println!("loaded {bytes} bytes from files/data.json");
-    println!("loaded into buff: {buff}");
-    let structure: KanBansJammed = serde_json::from_str(&buff)?;
-    println!("structure: {structure:?}");
-    println!("shutting down; saving workspace to {}", DATA_FILE_PATH);
-    let serialized = serde_json::to_string(&structure).expect("should have been able to serialize");
-    fs::write(DATA_FILE_PATH, serialized).expect(format!("should have been able to save to {}", DATA_FILE_PATH).as_str());
-    println!("saved serialized to {}", DATA_FILE_PATH);
-    OK
+#[derive(Serialize, Deserialize, Debug)]
+struct Item {
+    name: String,
+    contents: String,
+    status: String,
+}
+
+impl Item {
+    fn new(name: &str, contents: &str, status: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            contents: contents.to_string(),
+            status: status.to_string(),
+        }
+    }
+}
+
+const BOARD_CONFIG: &str = "/.config/kan-ban-jam/kanban_config.json";
+
+fn get_config_path() -> String {
+    match env_home::env_home_dir() {
+        Some(dir) => dir.into_os_string().into_string().unwrap(),
+        None => panic!("environment variable for user's home directory doesn't exist!"),
+    }
+}
+
+fn main() {
+
+    let config_path: String = get_config_path() + BOARD_CONFIG;
+    let mut board = Board::open_from_file(&config_path);
+    board.add_item("dick", "beets");
+    println!("so what's in that board: {board:?}");
+    board.save(&config_path);
+
 }
