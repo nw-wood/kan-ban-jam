@@ -2,6 +2,7 @@ use env_home;
 use std::fs;
 use serde::{Serialize, Deserialize};
 use serde_json;
+use regex::Regex;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Board {
@@ -9,6 +10,7 @@ struct Board {
     items: Vec<Item>,
     statuses: Vec<String>,
 }
+
 impl Board {
 
     fn new(name: &str, statuses: Vec<String>) -> Self {
@@ -41,6 +43,12 @@ impl Board {
         }
     }
 
+    fn list_items(&self) {
+        for item in &self.items {
+            println!("item; name: {}, status: {}, contents: {}", item.name, item.status, item.contents);
+        }
+    }
+
     fn save(&self, path: &String) {
         match serde_json::to_string(&self) {
             Ok(json) => {
@@ -67,19 +75,55 @@ impl Board {
     }
 
     fn promote_item(&mut self, name: &str) {
-        for item in &self.items {
+        for item in &mut self.items {
             if item.name == name.to_string() {
-                for status in &self.statuses {
-                    if item.status == status {
-
+                for (index, status) in &mut self.statuses.iter().enumerate() {
+                    if item.status == *status && &item.status != self.statuses.last().unwrap() {
+                        item.set_status(&self.statuses[index + 1]);
+                        break;
                     }
                 }
             }
         }
     }
+
+    fn demote_item(&mut self, name: &str) {
+        for item in &mut self.items {
+            if item.name == name.to_string() {
+                for (index, status) in &mut self.statuses.iter().enumerate() {
+                    if item.status == *status && item.status != self.statuses[0] {
+                        item.set_status(&self.statuses[index - 1]);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    fn rename_item(&mut self, name: &str, new_name: &str) {
+        for item in &mut self.items {
+            if item.name == name { item.set_name(new_name);}
+        }
+    }
+
+    fn update_item_contents(&mut self, name: &str, new_contents: &str) {
+        for item in &mut self.items {
+            if item.name == name { item.set_contents(new_contents); }
+        }
+    }
+
+    fn remove_item(&mut self, name: &str) {
+        let items_clone = self.items.clone();
+        for (index, item) in items_clone.iter().enumerate() {
+            if item.name == name {
+                self.items.remove(index);
+            }
+        }
+    }
+
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Item {
     name: String,
     contents: String,
@@ -93,6 +137,18 @@ impl Item {
             contents: contents.to_string(),
             status: status.to_string(),
         }
+    }
+
+    fn set_status(&mut self, status: &str) {
+        self.status = status.to_string();
+    }
+
+    fn set_name(&mut self, name: &str) {
+        self.name = name.to_string();
+    }
+
+    fn set_contents(&mut self, new_contents: &str) {
+        self.contents = new_contents.to_string();
     }
 }
 
@@ -108,9 +164,77 @@ fn get_config_path() -> String {
 fn main() {
 
     let config_path: String = get_config_path() + BOARD_CONFIG;
+    
     let mut board = Board::open_from_file(&config_path);
-    board.add_item("dick", "beets");
-    println!("so what's in that board: {board:?}");
+
+    let mut buff = String::new();
+
+    loop { 
+        buff = String::new();
+        std::io::stdin().read_line(&mut buff).expect("couldn't read line");
+
+        buff.pop(); //remove new line
+
+        let split: Vec<&str> = buff.split_whitespace().collect();
+
+        let re = Regex::new(r#""([^"]+)""#).unwrap();
+        let items: Vec<String> = re.captures_iter(&buff)
+            .filter_map(|cap| {
+                let item = cap[1].to_string();
+                if item.trim().is_empty() {
+                    None
+                } else {
+                    Some(item)
+                }
+            })
+            .collect();
+
+        let name_provided: bool  = items.get(0).is_some();
+        let param_provided: bool = items.get(1).is_some();
+
+        match split[0] {
+            "exit" => break,
+            "help" => println!("list of commands: help, list, exit, new, rename, update, promote, and demote"),
+            "new" => {
+                if name_provided == true && param_provided == true {
+                    board.add_item(items[0].as_str(), items[1].as_str());
+                }
+            }
+            "rename" => {
+                if name_provided == true && param_provided == true {
+                    board.rename_item(items[0].as_str(), items[1].as_str());
+                }
+            }
+            "update" => {
+                if name_provided == true && param_provided == true {
+                    board.update_item_contents(items[0].as_str(), items[1].as_str());
+                }
+            }
+            "promote" => {
+                if name_provided == true {
+                    board.promote_item(items[0].as_str());
+                }
+            }
+            "demote" => {
+                if name_provided == true {
+                    board.demote_item(items[0].as_str());
+                }
+            }
+            "delete" => {
+                if name_provided == true {
+                    board.remove_item(items[0].as_str());
+                }
+            }
+            "list" => {
+                board.list_items();
+            }
+            "save" => {
+                board.save(&config_path);
+            }
+            _ => println!("unknown command; type help if ya' need it"),
+        }
+    }
+
     board.save(&config_path);
 
 }
