@@ -75,21 +75,26 @@ impl Board {
     }
 
     fn promote_item(&mut self, name: &str) {
+        let mut exists: bool = false;
         for item in &mut self.items {
             if item.name == name.to_string() {
+                exists = true;
                 for (index, status) in &mut self.statuses.iter().enumerate() {
                     if item.status == *status && &item.status != self.statuses.last().unwrap() {
                         item.set_status(&self.statuses[index + 1]);
                         break;
-                    }
+                    } 
                 }
             }
         }
+        if exists == false { println!("couldn't promote item because it doesn't exist"); }
     }
 
     fn demote_item(&mut self, name: &str) {
+        let mut exists: bool = false;
         for item in &mut self.items {
             if item.name == name.to_string() {
+                exists = true;
                 for (index, status) in &mut self.statuses.iter().enumerate() {
                     if item.status == *status && item.status != self.statuses[0] {
                         item.set_status(&self.statuses[index - 1]);
@@ -98,27 +103,39 @@ impl Board {
                 }
             }
         }
+        if exists == false { println!("couldn't demote item because it doesn't exist"); }
     }
 
     fn rename_item(&mut self, name: &str, new_name: &str) {
+        let mut exists: bool = false;
         for item in &mut self.items {
-            if item.name == name { item.set_name(new_name);}
+            if item.name == name {
+                exists = true;
+                item.set_name(new_name);
+            }
         }
+        if exists == false { println!("couldn't rename because the item doesn't exist"); }
     }
 
     fn update_item_contents(&mut self, name: &str, new_contents: &str) {
+        let mut exists: bool = false;
         for item in &mut self.items {
             if item.name == name { item.set_contents(new_contents); }
+            exists = true;
         }
+        if exists == false { println!("couldn't update contents because the item doesn't exist"); }
     }
 
     fn remove_item(&mut self, name: &str) {
+        let mut exists: bool = false;
         let items_clone = self.items.clone();
         for (index, item) in items_clone.iter().enumerate() {
             if item.name == name {
                 self.items.remove(index);
+                exists = true;
             }
         }
+        if exists == false { println!("couldnt remove the item because it doesn't exist"); }
     }
 
 }
@@ -132,6 +149,7 @@ struct Item {
 
 impl Item {
     fn new(name: &str, contents: &str, status: &str) -> Self {
+        println!("producing an item; {}, {}, {}", name, contents, status);
         Self {
             name: name.to_string(),
             contents: contents.to_string(),
@@ -140,14 +158,17 @@ impl Item {
     }
 
     fn set_status(&mut self, status: &str) {
+        println!("updating '{}' to status '{}'", self.name, status);
         self.status = status.to_string();
     }
 
     fn set_name(&mut self, name: &str) {
+        println!("updating '{}' to name '{}'", self.name, name);
         self.name = name.to_string();
     }
 
     fn set_contents(&mut self, new_contents: &str) {
+        println!("updating contents of '{}' with new content: {}", self.name, new_contents);
         self.contents = new_contents.to_string();
     }
 }
@@ -167,18 +188,18 @@ fn main() {
     
     let mut board = Board::open_from_file(&config_path);
 
-    let mut buff = String::new();
+    let mut _buff = String::new();
 
     loop { 
-        buff = String::new();
-        std::io::stdin().read_line(&mut buff).expect("couldn't read line");
+        _buff = String::new();
+        std::io::stdin().read_line(&mut _buff).expect("couldn't read line");
 
-        buff.pop(); //remove new line
+        _buff.pop(); //remove new line
 
-        let split: Vec<&str> = buff.split_whitespace().collect();
+        let split: Vec<&str> = _buff.split_whitespace().collect();
 
         let re = Regex::new(r#""([^"]+)""#).unwrap();
-        let items: Vec<String> = re.captures_iter(&buff)
+        let items: Vec<String> = re.captures_iter(&_buff)
             .filter_map(|cap| {
                 let item = cap[1].to_string();
                 if item.trim().is_empty() {
@@ -231,7 +252,7 @@ fn main() {
             "save" => {
                 board.save(&config_path);
             }
-            _ => println!("unknown command; type help if ya' need it"),
+            _ => println!("unknown command; type help if you need it"),
         }
     }
 
