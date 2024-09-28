@@ -137,6 +137,8 @@ impl Board {
         }
     }
 
+    //discord webhook work please
+
     fn promote_item(&mut self, name: &str) {
         let mut exists: bool = false;
         for item in &mut self.items {
@@ -158,28 +160,9 @@ impl Board {
             if let Some(index) = self.statuses.iter().position(|status| &item.status == status ) {
                 if index < self.statuses.len() - 1 {
                     item.set_status(&self.statuses[index + 1]);
-                } else {
-                    println!("couldn't demote because already lowest possible status");
-                }
-            } else {
-                println!("couldn't find matching status (shouldn't ever happen)");
-            }
-        } else {
-            println!("couldn't find item '{name}'");
-        }
-        /*let mut exists: bool = false;
-        for item in &mut self.items {
-            if item.name == name.to_string() {
-                exists = true;
-                for (index, status) in &mut self.statuses.iter().enumerate() {
-                    if item.status == *status && item.status != self.statuses[0] {
-                        item.set_status(&self.statuses[index - 1]);
-                        break;
-                    }
-                }
-            }
-        }
-        if exists == false { println!("couldn't demote item because it doesn't exist"); }*/
+                } else { println!("couldn't demote because already lowest possible status"); }
+            } else { println!("couldn't find matching status index (shouldn't ever happen)"); }
+        } else { println!("couldn't find item '{name}'"); }
     }
 
     fn rename_item(&mut self, name: &str, new_name: &str) {
