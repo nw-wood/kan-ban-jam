@@ -1,10 +1,80 @@
 use env_home;
-use std::fs;
+use std::{fs::{self, DirEntry}, path::{Path, PathBuf}};
 use serde::{Serialize, Deserialize};
 use serde_json;
 use regex::Regex;
 
-#[derive(Serialize, Deserialize, Debug)]
+//notes about asyncronous operations
+//use async when you need I/O or long-running tasks
+//don't block the thread in async functions
+//keep async functions small
+
+//use await for async tasks, but limit its usage
+
+    /*
+        async fn fetch_data() {
+            let data = async_get_data().await;  // Good
+            process_data(data);  // Processing happens after awaiting
+        }
+    */
+
+//handle async errors explcitly - when writing async functions return results<t, e>'s as good practice, and handle errors from them
+
+    /*
+        async fn fetch_data() -> Result<String, SomeError> {
+            let response = http_call().await?;
+            Ok(response)
+        }
+    */
+
+//be careful with data with a shared state, like data contained in an arc mutex, or a tokio mutex
+    /*
+        let shared_data = Arc::new(Mutex::new(vec![])); <--- careful handling this, do futures hold locks? IDK, maybe, but during execution via awaiting them they certainly would
+    */
+
+//avoid using async in constructors (like associated new functions)
+
+    /*
+        impl MyStruct {
+            fn new() -> Self { /* synchronous */ }
+            async fn initialize(&mut self) { /* async setup */ }
+        }
+    */
+
+//use tokio::spawn for parallel execution
+
+    /*
+        let handle1 = tokio::spawn(async_task1()); <-------- future for task is created and bound to handle1
+        let handle2 = tokio::spawn(async_task2());
+
+        let result1 = handle1.await?;  <-------------------- the future is executed now for handle1, but just as well if handle2.await?; was called then out of order exec would have been fine
+        let result2 = handle2.await?;
+    */
+
+//understand that async functions return futures *
+
+    /*
+        async fn example() -> u32 {
+            42
+        }
+
+        let future = example();  // Returns a Future, but doesn't run
+        let result = future.await;  // Now the future runs
+
+        #[derive(Serialize, Deserialize, Debug)]
+        struct Board {
+            name: String,
+            items: Vec<Item>,
+            statuses: Vec<String>,
+        }
+    */
+
+//use timeouts instead of sleeping threads and stuff - tokio has a way of executing a future after a duration of time without breaking things
+
+    //let result = tokio::time::timeout(Duration::from_secs(5), async_task()).await;
+
+
+#[derive(Deserialize, Serialize, Debug)]
 struct Board {
     name: String,
     items: Vec<Item>,
@@ -21,26 +91,19 @@ impl Board {
         }
     }
 
-    fn open_from_file(path: &String) -> Self {
+    fn open_from_file(path: &Path) -> Self {
 
-        let file = fs::read_to_string(path);
+        if let Ok(contents) = fs::read_to_string(path) {
 
-        if let Ok(contents) = file {
+            if let Ok(json) = serde_json::from_str(&contents) {
 
-            println!("read file; deserializing");
-            let value = serde_json::from_str(contents.as_str());
+                return json;
 
-            if let Ok(json) = value {
-                println!("loaded config");
-                json
-            } else {
-                println!("couldnt deserialize; new default");
-                Board::new("kan-ban-board", vec!["new".to_string(), "wip".to_string(), "review".to_string(), "done".to_string()])
-            }
-        } else {
-            println!("couldn't read file; new default");
-            Board::new("kan-ban-board", vec!["new".to_string(), "wip".to_string(), "review".to_string(), "done".to_string()])
-        }
+            } else { println!("unable to deserialize json in config file"); }
+
+        } else { println!("unable to read contents from config file"); }
+
+        Board::new("kan-ban-board", vec!["new".to_string(), "wip".to_string(), "review".to_string(), "done".to_string()])
     }
 
     fn list_items(&self) {
@@ -49,12 +112,12 @@ impl Board {
         }
     }
 
-    fn save(&self, path: &String) {
+    fn save(&self, path: &PathBuf) {
         match serde_json::to_string(&self) {
             Ok(json) => {
                 match fs::write(&path, json) {
                     Ok(_) => println!("saved board"),
-                    Err(e) => println!("couldn't save: {e}, config path: {path}"),
+                    Err(e) => println!("couldn't save: {e}, config path: {}", path.display()),
                 }
             }
             Err(e) => println!("couldn't serialize to JSON: {e}"),
@@ -91,7 +154,20 @@ impl Board {
     }
 
     fn demote_item(&mut self, name: &str) {
-        let mut exists: bool = false;
+        if let Some(item) = self.items.iter_mut().find(|item| item.name == name) {
+            if let Some(index) = self.statuses.iter().position(|status| &item.status == status ) {
+                if index < self.statuses.len() - 1 {
+                    item.set_status(&self.statuses[index + 1]);
+                } else {
+                    println!("couldn't demote because already lowest possible status");
+                }
+            } else {
+                println!("couldn't find matching status (shouldn't ever happen)");
+            }
+        } else {
+            println!("couldn't find item '{name}'");
+        }
+        /*let mut exists: bool = false;
         for item in &mut self.items {
             if item.name == name.to_string() {
                 exists = true;
@@ -103,42 +179,34 @@ impl Board {
                 }
             }
         }
-        if exists == false { println!("couldn't demote item because it doesn't exist"); }
+        if exists == false { println!("couldn't demote item because it doesn't exist"); }*/
     }
 
     fn rename_item(&mut self, name: &str, new_name: &str) {
-        let mut exists: bool = false;
-        for item in &mut self.items {
-            if item.name == name {
-                exists = true;
-                item.set_name(new_name);
-            }
+        if let Some(item) = self.items.iter_mut().find(|item| item.name == name) {
+            item.set_name(new_name);
+        } else {
+            println!("couldn't find item '{name}'");
         }
-        if exists == false { println!("couldn't rename because the item doesn't exist"); }
     }
 
-    fn update_item_contents(&mut self, name: &str, new_contents: &str) {
-        let mut exists: bool = false;
-        for item in &mut self.items {
-            if item.name == name { item.set_contents(new_contents); }
-            exists = true;
+    fn update_item(&mut self, name: &str, new_contents: &str) {
+        if let Some(item) = self.items.iter_mut().find(|item| item.name == name) {
+            item.set_contents(new_contents);
+        } else {
+            println!("couldn't find item '{name}'");
         }
-        if exists == false { println!("couldn't update contents because the item doesn't exist"); }
     }
 
     fn remove_item(&mut self, name: &str) {
-        let mut exists: bool = false;
-        let items_clone = self.items.clone();
-        for (index, item) in items_clone.iter().enumerate() {
-            if item.name == name {
-                self.items.remove(index);
-                exists = true;
-            }
+        if let Some(index) = self.items.iter().position(|item| item.name == name) {
+            self.items.remove(index);
+        } else {
+            println!("couldn't find item '{name}'");
         }
-        if exists == false { println!("couldnt remove the item because it doesn't exist"); }
     }
-
 }
+
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Item {
@@ -149,7 +217,6 @@ struct Item {
 
 impl Item {
     fn new(name: &str, contents: &str, status: &str) -> Self {
-        println!("producing an item; {}, {}, {}", name, contents, status);
         Self {
             name: name.to_string(),
             contents: contents.to_string(),
@@ -158,34 +225,36 @@ impl Item {
     }
 
     fn set_status(&mut self, status: &str) {
-        println!("updating '{}' to status '{}'", self.name, status);
         self.status = status.to_string();
     }
 
     fn set_name(&mut self, name: &str) {
-        println!("updating '{}' to name '{}'", self.name, name);
         self.name = name.to_string();
     }
 
     fn set_contents(&mut self, new_contents: &str) {
-        println!("updating contents of '{}' with new content: {}", self.name, new_contents);
         self.contents = new_contents.to_string();
     }
 }
 
 const BOARD_CONFIG: &str = "/.config/kan-ban-jam/kanban_config.json";
 
-fn get_config_path() -> String {
+fn get_config_path(str_path: &str) -> PathBuf {
     match env_home::env_home_dir() {
-        Some(dir) => dir.into_os_string().into_string().unwrap(),
-        None => panic!("environment variable for user's home directory doesn't exist!"),
+        Some(directory) => Path::new(&format!("{}/{}", directory.display(), str_path)).to_path_buf(),
+        None => {
+            match std::env::current_dir() {
+                Ok(directory) => Path::new(&format!("{}", directory.display())).to_path_buf(),
+                Err(e) => panic!("couldnt resolve a working directory; error: {e}"),
+            }
+        },
     }
 }
 
 fn main() {
 
-    let config_path: String = get_config_path() + BOARD_CONFIG;
-    
+    let config_path = get_config_path(BOARD_CONFIG);
+
     let mut board = Board::open_from_file(&config_path);
 
     let mut _buff = String::new();
