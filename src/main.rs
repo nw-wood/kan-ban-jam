@@ -201,58 +201,53 @@ fn main() {
             })
             .collect();
 
-        if let Some(&command) = simple_inputs.get(0) {
-            match command {
-
-                "exit" => {
-                    board.save(&config_path);
-                    println!("exiting...");
-                    process::exit(0);
+        let inputs: Vec<&str> = {
+            if is_valid_simple_command(&board, &simple_inputs) {
+                simple_inputs.clone()
+            } else if is_valid_quoted_single_input(&quoted_inputs) {
+                if is_valid_quoted_double_input(&quoted_inputs) {
+                    vec![simple_inputs[0], quoted_inputs[0].as_str(), quoted_inputs[1].as_str()]
+                } else if is_valid_quoted_single_input(&quoted_inputs) {
+                    vec![simple_inputs[0], quoted_inputs[0].as_str()]
+                } else {
+                    vec!["format"]
                 }
-                "save" => board.save(&config_path),
-
-                "list" => board.list_items(),
-
-                "add" => {
-                    if is_valid_simple_command(&board, &simple_inputs) {    board.add_item(simple_inputs[1],simple_inputs[2..].join(" ").as_str()); }
-                    else if is_valid_quoted_double_input(&quoted_inputs) {  board.add_item(quoted_inputs[0].as_str(), quoted_inputs[1].as_str()); }
-                }
-
-                "rename" => {
-                    if is_valid_simple_command(&board, &simple_inputs) {    board.rename_item(simple_inputs[1],simple_inputs[2..].join(" ").as_str()); }
-                    else if is_valid_quoted_double_input(&quoted_inputs) {  board.rename_item(quoted_inputs[0].as_str(), quoted_inputs[1].as_str()); }
-                }
-
-                "update" => {
-                    if is_valid_simple_command(&board, &simple_inputs) {    board.update_item(simple_inputs[1],simple_inputs[2..].join(" ").as_str()); }
-                    else if is_valid_quoted_double_input(&quoted_inputs) {  board.update_item(quoted_inputs[0].as_str(), quoted_inputs[1].as_str()); }
-                }
-
-                "promote" => {
-                    if is_valid_simple_command(&board, &simple_inputs) {    board.promote_item(simple_inputs[1]); }
-                    if is_valid_quoted_single_input(&quoted_inputs) {       board.promote_item(quoted_inputs[0].as_str());}
-                }
-
-                "demote" => {
-                    if is_valid_simple_command(&board, &simple_inputs) {    board.demote_item(simple_inputs[1]); }
-                    if is_valid_quoted_single_input(&quoted_inputs) {       board.demote_item(quoted_inputs[0].as_str());}
-                }
-
-                "remove" => {
-                    if is_valid_simple_command(&board, &simple_inputs) {    board.remove_item(simple_inputs[1]); }
-                    if is_valid_quoted_single_input(&quoted_inputs) {       board.remove_item(quoted_inputs[0].as_str());}
-                }
-
-                _ => println!("unknown command!"),
+            } else {
+                vec!["format"]
             }
-        } else {
-            println!("EOF or oddball in _buff; saving then break");
-            board.save(&config_path);
-            break;
-        }
-    }
+        };
 
-    board.save(&config_path);
+        match inputs.as_slice() {
+            [command, name, param] => {
+                match *command {
+                    "add" =>    board.add_item(name, param),
+                    "rename" => board.rename_item(name, param),
+                    "update" => board.update_item(name, param),
+                    _ => println!("unknown command, or provided too many params"),
+                }
+            },
+            [command, name] => {
+                match *command {
+
+                    "promote" => board.promote_item(name),
+                    "demote" => board.demote_item(name),
+                    "remove" => board.remove_item(name),
+                    _ => println!("unknown command, or provided too many params"),
+                }
+            },
+            [command] => {
+                match *command {
+                    "list" => board.list_items(),
+                    "help" => println!("commands are list, help, format, rename, update, remove, promote, demote, add, and exit"),
+                    "format" => println!("commands must be provided as 'command \"name wth spaces\" \"second input with spaces\"'; or simple commands as 'command name_without_spaces second input with or without spaces or quotes"),
+                    // => "unknown command",
+                    _ => println!("unknown command"),
+                }
+            },
+            _ => println!("what in the fuck"),
+        }
+        board.save(&config_path);
+    }
 
 }
 
