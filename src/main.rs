@@ -1,5 +1,5 @@
 use env_home;
-use std::{fs::{self}, path::{Path, PathBuf}};
+use std::{fs::{self}, path::{Path, PathBuf}, process};
 use serde::{Serialize, Deserialize};
 use serde_json;
 use regex::Regex;
@@ -100,6 +100,14 @@ impl Board {
             println!("couldn't find item '{name}'");
         }
     }
+
+    fn item_exists(&self, name: &str) -> bool {
+        if let Some(_) = self.items.iter().find(|item| item.name == name) {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 
@@ -119,17 +127,9 @@ impl Item {
         }
     }
 
-    fn set_status(&mut self, status: &str) {
-        self.status = status.to_string();
-    }
-
-    fn set_name(&mut self, name: &str) {
-        self.name = name.to_string();
-    }
-
-    fn set_contents(&mut self, new_contents: &str) {
-        self.contents = new_contents.to_string();
-    }
+    fn set_status(&mut self, status: &str)          { self.status = status.to_string(); }
+    fn set_name(&mut self, name: &str)              { self.name = name.to_string(); }
+    fn set_contents(&mut self, new_contents: &str)  { self.contents = new_contents.to_string(); }
 }
 
 const BOARD_CONFIG: &str = "/.config/kan-ban-jam/kanban_config.json";
@@ -146,11 +146,38 @@ fn get_config_path(str_path: &str) -> PathBuf {
     }
 }
 
+fn is_valid_simple_command(board: &Board, inputs: &Vec<&str>) -> bool {
+    if let Some(&second_input) = inputs.get(1) {
+        if board.item_exists(second_input) == true {
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+fn is_valid_quoted_single_input(inputs: &Vec<String>) -> bool {
+
+    if inputs.get(0).is_some() { true } else { false }
+}
+
+fn is_valid_quoted_double_input(inputs: &Vec<String>) -> bool {
+
+    if inputs.get(0).is_some() && inputs.get(1).is_some() { true }
+    else { false }
+}
+
 fn main() {
 
     let config_path = get_config_path(BOARD_CONFIG);
 
     let mut board = Board::open_from_file(&config_path);
+
+    println!("board loaded; printing a quick list of items...");
+
+    board.list_items();
 
     let mut _buff = String::new();
 
@@ -160,10 +187,10 @@ fn main() {
 
         _buff.pop(); //remove new line
 
-        let split: Vec<&str> = _buff.split_whitespace().collect();
+        let simple_inputs: Vec<&str> = _buff.split_whitespace().collect();
 
         let re = Regex::new(r#""([^"]+)""#).unwrap();
-        let items: Vec<String> = re.captures_iter(&_buff)
+        let quoted_inputs: Vec<String> = re.captures_iter(&_buff)
             .filter_map(|cap| {
                 let item = cap[1].to_string();
                 if item.trim().is_empty() {
@@ -174,49 +201,54 @@ fn main() {
             })
             .collect();
 
-        let name_provided: bool  = items.get(0).is_some();
-        let param_provided: bool = items.get(1).is_some();
+        if let Some(&command) = simple_inputs.get(0) {
+            match command {
 
-        match split[0] {
-            "exit" => break,
-            "help" => println!("list of commands: help, list, exit, new, rename, update, promote, and demote"),
-            "new" => {
-                if name_provided == true && param_provided == true {
-                    board.add_item(items[0].as_str(), items[1].as_str());
+                "exit" => {
+                    board.save(&config_path);
+                    println!("exiting...");
+                    process::exit(0);
                 }
-            }
-            "rename" => {
-                if name_provided == true && param_provided == true {
-                    board.rename_item(items[0].as_str(), items[1].as_str());
+                "save" => board.save(&config_path),
+
+                "list" => board.list_items(),
+
+                "add" => {
+                    if is_valid_simple_command(&board, &simple_inputs) {    board.add_item(simple_inputs[1],simple_inputs[2..].join(" ").as_str()); }
+                    else if is_valid_quoted_double_input(&quoted_inputs) {  board.add_item(quoted_inputs[0].as_str(), quoted_inputs[1].as_str()); }
                 }
-            }
-            "update" => {
-                if name_provided == true && param_provided == true {
-                    board.update_item(items[0].as_str(), items[1].as_str());
+
+                "rename" => {
+                    if is_valid_simple_command(&board, &simple_inputs) {    board.rename_item(simple_inputs[1],simple_inputs[2..].join(" ").as_str()); }
+                    else if is_valid_quoted_double_input(&quoted_inputs) {  board.rename_item(quoted_inputs[0].as_str(), quoted_inputs[1].as_str()); }
                 }
-            }
-            "promote" => {
-                if name_provided == true {
-                    board.promote_item(items[0].as_str());
+
+                "update" => {
+                    if is_valid_simple_command(&board, &simple_inputs) {    board.update_item(simple_inputs[1],simple_inputs[2..].join(" ").as_str()); }
+                    else if is_valid_quoted_double_input(&quoted_inputs) {  board.update_item(quoted_inputs[0].as_str(), quoted_inputs[1].as_str()); }
                 }
-            }
-            "demote" => {
-                if name_provided == true {
-                    board.demote_item(items[0].as_str());
+
+                "promote" => {
+                    if is_valid_simple_command(&board, &simple_inputs) {    board.promote_item(simple_inputs[1]); }
+                    if is_valid_quoted_single_input(&quoted_inputs) {       board.promote_item(quoted_inputs[0].as_str());}
                 }
-            }
-            "delete" => {
-                if name_provided == true {
-                    board.remove_item(items[0].as_str());
+
+                "demote" => {
+                    if is_valid_simple_command(&board, &simple_inputs) {    board.demote_item(simple_inputs[1]); }
+                    if is_valid_quoted_single_input(&quoted_inputs) {       board.demote_item(quoted_inputs[0].as_str());}
                 }
+
+                "remove" => {
+                    if is_valid_simple_command(&board, &simple_inputs) {    board.remove_item(simple_inputs[1]); }
+                    if is_valid_quoted_single_input(&quoted_inputs) {       board.remove_item(quoted_inputs[0].as_str());}
+                }
+
+                _ => println!("unknown command!"),
             }
-            "list" => {
-                board.list_items();
-            }
-            "save" => {
-                board.save(&config_path);
-            }
-            _ => println!("unknown command; type help if you need it"),
+        } else {
+            println!("EOF or oddball in _buff; saving then break");
+            board.save(&config_path);
+            break;
         }
     }
 
