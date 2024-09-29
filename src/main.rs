@@ -25,14 +25,16 @@ impl Board {
     fn open_from_file(path: &Path) -> Self {
         if let Ok(contents) = fs::read_to_string(path) {
             if let Ok(json) = serde_json::from_str(&contents) {
+                println!("loaded board from previous save...");
                 return json;
-            } else { println!("unable to deserialize json in config file"); }
-        } else { println!("unable to read contents from config file"); }
+            } else { println!("unable to deserialize json in config file!"); }
+        } else { println!("unable to read contents from config file!"); }
 
         Board::new("kan-ban-board", vec!["new".to_string(), "wip".to_string(), "review".to_string(), "done".to_string()])
     }
 
     fn list_items(&self) {
+        println!("printing item list...");
         self.items.iter().for_each(|item| println!("item; name: {}, status: {}, contents: {}", item.name, item.status, item.contents));
     }
 
@@ -54,6 +56,7 @@ impl Board {
             println!("can't add '{name}' because it already exists"); 
         } else { 
             self.items.push(Item::new(name, contents, self.statuses[0].as_str()));
+            println!("added item to board; item: {name}, contents: {contents}, status: {}", self.statuses[0].as_str());
         }
     }
 
@@ -61,7 +64,10 @@ impl Board {
         if let Some(item) = self.items.iter_mut().find(|item| item.name == name) {
             if let Some(index) = self.statuses.iter().position(|status| &item.status == status) {
                 if index > 0 {
+
                     item.set_status(&self.statuses[index - 1]);
+                    println!("updated status of item; item: {name}, new status: {}", &self.statuses[index - 1]);
+
                 } else { println!("couldn't promote because already lowest possible status"); }
             } else { println!("couldn't find matching status index (shouldn't ever happen)"); }
         } else { println!("couldn't find item '{name}'"); }
@@ -71,7 +77,10 @@ impl Board {
         if let Some(item) = self.items.iter_mut().find(|item| item.name == name) {
             if let Some(index) = self.statuses.iter().position(|status| &item.status == status ) {
                 if index < self.statuses.len() - 1 {
+
                     item.set_status(&self.statuses[index + 1]);
+                    println!("updated status of item; item: {name}, new status: {}", &self.statuses[index + 1]);
+
                 } else { println!("couldn't promote because already highest possible status"); }
             } else { println!("couldn't find matching status index (shouldn't ever happen)"); }
         } else { println!("couldn't find item '{name}'"); }
@@ -79,7 +88,10 @@ impl Board {
 
     fn rename_item(&mut self, name: &str, new_name: &str) {
         if let Some(item) = self.items.iter_mut().find(|item| item.name == name) {
+
             item.set_name(new_name);
+            println!("set name of {name} to {new_name}");
+
         } else {
             println!("couldn't find item '{name}'");
         }
@@ -87,7 +99,10 @@ impl Board {
 
     fn update_item(&mut self, name: &str, new_contents: &str) {
         if let Some(item) = self.items.iter_mut().find(|item| item.name == name) {
+
             item.set_contents(new_contents);
+            println!("set contents of {name} to {new_contents}");
+
         } else {
             println!("couldn't find item '{name}'");
         }
@@ -95,17 +110,12 @@ impl Board {
 
     fn remove_item(&mut self, name: &str) {
         if let Some(index) = self.items.iter().position(|item| item.name == name) {
+
             self.items.remove(index);
+            println!("removed item {name} from the board");
+
         } else {
             println!("couldn't find item '{name}'");
-        }
-    }
-
-    fn item_exists(&self, name: &str) -> bool {
-        if let Some(_) = self.items.iter().find(|item| item.name == name) {
-            true
-        } else {
-            false
         }
     }
 }
@@ -146,29 +156,6 @@ fn get_config_path(str_path: &str) -> PathBuf {
     }
 }
 
-fn is_valid_simple_command(board: &Board, inputs: &Vec<&str>) -> bool {
-    if let Some(&second_input) = inputs.get(1) {
-        if board.item_exists(second_input) == true {
-            true
-        } else {
-            false
-        }
-    } else {
-        false
-    }
-}
-
-fn is_valid_quoted_single_input(inputs: &Vec<String>) -> bool {
-
-    if inputs.get(0).is_some() { true } else { false }
-}
-
-fn is_valid_quoted_double_input(inputs: &Vec<String>) -> bool {
-
-    if inputs.get(0).is_some() && inputs.get(1).is_some() { true }
-    else { false }
-}
-
 fn main() {
 
     let config_path = get_config_path(BOARD_CONFIG);
@@ -201,21 +188,26 @@ fn main() {
             })
             .collect();
 
-        let inputs: Vec<&str> = {
-            if is_valid_simple_command(&board, &simple_inputs) {
-                simple_inputs.clone()
-            } else if is_valid_quoted_single_input(&quoted_inputs) {
-                if is_valid_quoted_double_input(&quoted_inputs) {
-                    vec![simple_inputs[0], quoted_inputs[0].as_str(), quoted_inputs[1].as_str()]
-                } else if is_valid_quoted_single_input(&quoted_inputs) {
-                    vec![simple_inputs[0], quoted_inputs[0].as_str()]
-                } else {
-                    vec!["format"]
+        let mut inputs: Vec<String> = vec![];
+
+        if let Some(_) = simple_inputs.get(0) { 
+            inputs.push( String::from(simple_inputs[0]) );
+            if quoted_inputs.get(0).is_some() {
+                inputs.push(quoted_inputs[0].clone());
+                if quoted_inputs.get(1).is_some() {
+                    inputs.push(quoted_inputs[1].clone());
                 }
-            } else {
-                vec!["format"]
+            } else if simple_inputs.get(1).is_some() {
+                inputs.push(simple_inputs[1].to_string());
+                if simple_inputs.get(2).is_some() {
+                    inputs.push(simple_inputs[2..].join(" "));
+                }
             }
-        };
+        }
+
+        let inputs: Vec<&str> = inputs.iter().map(|s| s.as_str()).collect();
+
+        println!("quick debuggin: {inputs:?}");
 
         match inputs.as_slice() {
             [command, name, param] => {
@@ -237,6 +229,8 @@ fn main() {
             },
             [command] => {
                 match *command {
+                    "exit" => break,
+                    "quit" => break,
                     "list" => board.list_items(),
                     "help" => println!("commands are list, help, format, rename, update, remove, promote, demote, add, and exit"),
                     "format" => println!("commands must be provided as 'command \"name wth spaces\" \"second input with spaces\"'; or simple commands as 'command name_without_spaces second input with or without spaces or quotes"),
@@ -244,10 +238,12 @@ fn main() {
                     _ => println!("unknown command"),
                 }
             },
-            _ => println!("what in the fuck"),
+            _ => println!("no input or all whitespace input provided; wut?"),
         }
-        board.save(&config_path);
     }
+
+    board.save(&config_path);
+    process::exit(0);
 
 }
 
