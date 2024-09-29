@@ -26,6 +26,26 @@ fn main() {
 
     let mut board = Board::open_from_file(&config_path);
 
-    cli::run_cli(&mut board, &config_path);
-    
+    println!("cli or server? (type cli or server)");
+
+    let mut _buff: String = String::new();
+
+    loop {
+
+        _buff = String::new();
+        let _ = std::io::stdin().read_line(&mut _buff);
+        _buff.pop();
+
+        if _buff == "cli".to_string() {
+
+            cli::run_cli(&mut board, &config_path);
+
+        } else if _buff == "server".to_string() {
+
+            println!("todo: server impl");
+            break;
+
+        }
+    }
+
 }
