@@ -1,10 +1,13 @@
 mod board;
 mod cli;
+mod server;
 
 use env_home;
 use std::path::{Path, PathBuf};
 
 use board::Board;
+use cli::cli_main;
+use server::server_main;
 
 const BOARD_CONFIG: &str = "/.config/kan-ban-jam/kanban_config.json";
 
@@ -38,12 +41,11 @@ fn main() {
 
         if _buff == "cli".to_string() {
 
-            cli::run_cli(&mut board, &config_path);
+            cli_main(&mut board, &config_path);
 
         } else if _buff == "server".to_string() {
 
-            println!("todo: server impl");
-            break;
+            server_main(&mut board, &config_path);
 
         }
     }

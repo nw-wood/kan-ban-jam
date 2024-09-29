@@ -3,7 +3,7 @@ use regex::Regex;
 use std::path::PathBuf;
 use std::process;
 
-pub fn run_cli(board: &mut Board, config_path: &PathBuf) {
+pub fn cli_main(board: &mut Board, config_path: &PathBuf) {
 	println!("board loaded; printing a quick list of items...");
 
     board.list_items();
