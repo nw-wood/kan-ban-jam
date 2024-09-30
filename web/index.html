@@ -3,31 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban Board</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .board { display: flex; gap: 20px; }
-        .column { width: 200px; padding: 10px; background-color: #f0f0f0; border-radius: 5px; }
-        h2 { text-align: center; }
-        .task { background-color: #fff; padding: 10px; margin-bottom: 10px; border-radius: 3px; }
-    </style>
+    <title>WebSocket Example</title>
 </head>
 <body>
-    <h1>Kanban Board</h1>
-    <div class="board">
-        <div class="column">
-            <h2>To Do</h2>
-            <div class="task">Task 1</div>
-            <div class="task">Task 2</div>
-        </div>
-        <div class="column">
-            <h2>In Progress</h2>
-            <div class="task">Task 3</div>
-        </div>
-        <div class="column">
-            <h2>Done</h2>
-            <div class="task">Task 4</div>
-        </div>
-    </div>
+    <h1>WebSocket Connection</h1>
+    <script>
+        const socket = new WebSocket('ws://192.168.1.169:3032/ws');
+
+        // Listen for messages from the server
+        socket.onmessage = function(event) {
+            console.log('Message from server:', event.data);
+        };
+
+        // When the connection opens, send a message
+        socket.onopen = function() {
+            socket.send('Hello from the client!');
+        };
+
+        // Handle connection errors
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+        };
+
+        // Handle connection closure
+        socket.onclose = function() {
+            console.log('WebSocket connection closed');
+        };
+    </script>
 </body>
 </html>
