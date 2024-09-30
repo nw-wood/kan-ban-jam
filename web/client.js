@@ -9,7 +9,15 @@ socket.onmessage = function(event) {
 
 // When the connection opens, send a message
 socket.onopen = function() {
-    socket.send('Hello from the client!');
+    const onopen_response = {
+        value: 'ready'
+    }
+
+    let req_as_json = JSON.stringify(onopen_response);
+
+    socket.send(req_as_json);
+
+    //socket.send('Hello from the client!');
 };
 
 // Handle connection errors

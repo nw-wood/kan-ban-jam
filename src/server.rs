@@ -73,10 +73,9 @@ async fn handle_websocket(ws: WebSocket) {
         while let Some(result) = rx.next().await {
             if let Ok(msg) = result {
                 if msg.is_text() {
-                    println!("recieved: {}", msg.to_str().unwrap());
-                    msg_tx.send("server response!".to_string()).unwrap();
-                    msg_tx.send("server response!".to_string()).unwrap();
-                    msg_tx.send("server response!".to_string()).unwrap();
+                    let msg = msg.to_str().unwrap().to_string();
+                    println!("recieved from client: {}", msg);
+                    msg_tx.send(msg).unwrap();
                 }
             }
         }
