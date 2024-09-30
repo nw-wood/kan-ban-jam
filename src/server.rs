@@ -1,14 +1,12 @@
 use crate::board::Board;
 use std::path::PathBuf;
-//use std::net::{Ipv4Addr, SocketAddrV4};
 use tokio::sync::oneshot;
-
-// use futures_util::future::TryFutureExt;
-
 use warp::Filter;
 
 const SERVER_ADDR: [u8; 4] = [192, 168, 1, 169];
 const SERVER_PORT: u16      = 3032;
+
+const WEB_FOLDER: &str = "web/";
 
 #[tokio::main]
 pub async fn server_main(board: &mut Board, path: &PathBuf) {
@@ -20,20 +18,36 @@ pub async fn server_main(board: &mut Board, path: &PathBuf) {
 
     let (tx, rx) = oneshot::channel();
 
-    let route_root = warp::path::end().map(|| "hello from root");
 
-    let route_shutdown = warp::path("shutdown").and(warp::get()).map(|| {
-        "shutdown!"
-    });
+    //need to figure out some routes for POST instead of GET, and figure for what things are actually important
+    //need to serve up an actual index.html from the root directory, and that needs to be running some JS
+    //the JS from the website needs to be what does the POSTing back to the server
+    // p r o b a b l y
 
-    let routes = route_root.or(route_shutdown);
+    //API routes
+
+    let hi = warp::path("hello").and(warp::get().map(|| "hello")); //GET route that responds with "hello"
+
+    let apis = hi; //if there were more it'd be hi.or(bye).or(dink).or(donk)
+
+    //Static content route
+
+    let content = warp::fs::dir(WEB_FOLDER); //sets WEB_FOLDER as the working dir?
+    let root = warp::get()  //don't think this get() is needed?
+        .and(warp::path::end())                                                   //for the 'end' path  
+        .and(warp::fs::file(format!("{}/index.html", WEB_FOLDER)));         //sends back a file instead of some .map(|| pred);
+
+    let static_site = content.or(root); //combines content and root filter
+                                                                                    //which is probably not needed? only root is needed prob
+
+    let routes = apis.or(static_site);
 
     let (_addr, server) = warp::serve(routes)
         .bind_with_graceful_shutdown((SERVER_ADDR, SERVER_PORT), async {
             rx.await.ok();
         });
 
-    tokio::task::spawn(server); //<-- spawns server in its own thread I assume
+    tokio::task::spawn(server);
 
     println!("press enter to shutdown");
 
@@ -42,16 +56,6 @@ pub async fn server_main(board: &mut Board, path: &PathBuf) {
 
     println!("poof!");
 
-    let _ = tx.send(()); //<-- sends unit struct to reciever which is held in server thread?
-
-    //probably should wait until the server thread has shutdown before ending the process
-    //std::process::exit(0);
-
+    let _ = tx.send(());
 
 }
-
-// ? brain time
-
-//so probably want to be able to autheticate just exactly who is allowed to do what
-//maybe figure out oath, and see if that gives at least a valid email of a user that can be compared to a list of configured users we allow to do write operations on the server
-// write operations would be operations that 

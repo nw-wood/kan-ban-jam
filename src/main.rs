@@ -29,27 +29,24 @@ fn main() {
 
     let mut board = Board::open_from_file(&config_path);
 
-    server_main(&mut board, &config_path); //rather do this faster for development
+    //server_main(&mut board, &config_path); //rather do this faster for development
 
-    /*println!("cli or server? (type cli or server)");
+    println!("cli or server? (type c or s)");
 
     let mut _buff: String = String::new();
 
-    loop { //this loop is bad and introduces the issue of waiting for input after shutdown of both the cli or server things
+    _buff = String::new();
+    let _ = std::io::stdin().read_line(&mut _buff);
+    _buff.pop();
 
-        _buff = String::new();
-        let _ = std::io::stdin().read_line(&mut _buff);
-        _buff.pop();
+    if _buff == "c".to_string() {
 
-        if _buff == "cli".to_string() {
+        cli_main(&mut board, &config_path);
 
-            cli_main(&mut board, &config_path);
+    } else if _buff == "s".to_string() {
 
-        } else if _buff == "server".to_string() {
+        server_main(&mut board, &config_path);
 
-            server_main(&mut board, &config_path);
-
-        }
-    }*/
+    }
 
 }
