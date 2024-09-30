@@ -74,7 +74,17 @@ async fn handle_websocket(ws: WebSocket) {
             if let Ok(msg) = result {
                 if msg.is_text() {
                     let msg = msg.to_str().unwrap().to_string();
-                    println!("recieved from client: {}", msg);
+                    //so the msg that's received should be in JSON format, and should be in client response format
+                    //that means that it should be taken and serialized into a struct that hasnt been written here yet
+                    //this struct should have some basic implementation that can be matched against
+                    //the matches are essentially the logic for handling the various datas sent from the client
+
+                    //in the case of {"value":"ready"} the entire board should be sent back deserialized as json!
+                    //actually, the values sent from the client pretty much can use very similar logic as the cli amusingly :thonk:
+
+                    //we're like a few hops and a skip away from actually doin' this
+                    
+                    println!("received from client: {}", msg);
                     msg_tx.send(msg).unwrap();
                 }
             }

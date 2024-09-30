@@ -4,6 +4,16 @@ console.log('hello from js!');
 // Listen for messages from the server
 socket.onmessage = function(event) {
     console.log('Message from server:', event.data);
+
+    //messages back from the server are going to start coming in here as deserialized json
+    //the first message back will be the entire board as json
+    //since the board comes back in this way here is where the bulk of the web page needs to be generated
+
+    //here is where the logic will be that takes the response types into consideration, and operates on the DOM to show visual changes
+
+    //logic needs to be written here (similar to the cli that interprets individual changes incoming from the server, and update the respresentation on the DOM)
+    //small changes would be ideal and updated live because all the potentially connected clients are going to receive these at the same time when their updates live!
+
     document.getElementById('server-output').innerHTML = document.getElementById('server-output').innerHTML + 'Message from server: ' + event.data + ' </br>'
 };
 
