@@ -24,33 +24,16 @@ pub async fn server_main(board: &mut Board, path: &PathBuf) {
     //API routes
 
     /*let hi = warp::path("hello").and(warp::get().map(|| "hello")); //GET route that responds with "hello"
-
     let apis = hi;*/ //if there were more it'd be hi.or(bye).or(dink).or(donk)
-
+    
     //Static content route
 
     let content = warp::fs::dir(WEB_FOLDER);
     let root = warp::get()
         .and(warp::path::end())
-        .and(warp::fs::file(format!("{}/index.html", WEB_FOLDER))); //serve up the web app
+        .and(warp::fs::file(format!("{}/index.html", WEB_FOLDER)));
 
-    //serves up standard page that must contain js script
-
-    let static_site = content.or(root); //combines content and root filter
-                                                                                    //which is probably not needed? only root is needed prob
-
-    //more learnings is leading me down the path of using javascript as a websocket client to the server
-    //warp supports websocket stuff so this is probably the best way of handling the back and forth between client and server
-
-    //the initial page served up by the rust server contains the javascript client code, and that code starts executing on the client end
-    //the client then talks back to the server and starts saying it exists, that it's hungry for data, etc
-    //the server takes this back talk and executes on it, and also responds with json payloads, or whatever
-
-    //probably important to keep in consideration some stuff I tihnk is PROBBAAAABLY important
-    //although not important right now, authentication _is_ important, but not until things actually work
-    //the duration clients are considered for is probably important... some kind of "ping pong hey yes I'm here you're here we're here thing"
-
-    //try to setup a websocket route instead of an ordinary one
+    let static_site = content.or(root);
 
     let ws_route = warp::path("ws")
         .and(warp::ws())
