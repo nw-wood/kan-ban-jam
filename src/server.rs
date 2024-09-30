@@ -1,10 +1,13 @@
 use crate::board::Board;
-use std::path::PathBuf;
-use futures_util::{SinkExt, StreamExt};
-use tokio::sync::{mpsc, oneshot};
-use warp::{filters::ws::WebSocket, Filter};
 
+use std::path::PathBuf;
+use futures_util::SinkExt;
+use futures_util::StreamExt;
+use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 use warp::ws::Message;
+use warp::filters::ws::WebSocket;
+use warp::Filter;
 
 const SERVER_ADDR: [u8; 4] = [192, 168, 1, 169];
 const SERVER_PORT: u16      = 3032;
@@ -25,7 +28,7 @@ pub async fn server_main(board: &mut Board, path: &PathBuf) {
 
     /*let hi = warp::path("hello").and(warp::get().map(|| "hello")); //GET route that responds with "hello"
     let apis = hi;*/ //if there were more it'd be hi.or(bye).or(dink).or(donk)
-    
+
     //Static content route
 
     let content = warp::fs::dir(WEB_FOLDER);
@@ -71,6 +74,8 @@ async fn handle_websocket(ws: WebSocket) {
             if let Ok(msg) = result {
                 if msg.is_text() {
                     println!("recieved: {}", msg.to_str().unwrap());
+                    msg_tx.send("server response!".to_string()).unwrap();
+                    msg_tx.send("server response!".to_string()).unwrap();
                     msg_tx.send("server response!".to_string()).unwrap();
                 }
             }
