@@ -1,5 +1,6 @@
 const socket = new WebSocket('ws://192.168.1.169:3032/ws');
 
+console.log('hello from js!');
 // Listen for messages from the server
 socket.onmessage = function(event) {
     console.log('Message from server:', event.data);
@@ -8,7 +9,7 @@ socket.onmessage = function(event) {
 
 // When the connection opens, send a message
 socket.onopen = function() {
-    //socket.send('Hello from the client!');
+    socket.send('Hello from the client!');
 };
 
 // Handle connection errors
