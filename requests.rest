@@ -1,0 +1,6 @@
+GET http://192.168.1.169:3032/
+
+### sublime REST client
+### https://github.com/yeraydiazdiaz/sublime-rest-client/
+
+GET http://192.168.1.169:3032/shutdown
