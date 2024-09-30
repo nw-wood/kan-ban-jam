@@ -49,7 +49,7 @@ pub fn cli_main(board: &mut Board, config_path: &PathBuf) {
 
         let inputs: Vec<&str> = inputs.iter().map(|s| s.as_str()).collect();
 
-        println!("quick debuggin: {inputs:?}");
+        //println!("quick debuggin: {inputs:?}");
 
         match inputs.as_slice() {
             [command, name, param] => {
