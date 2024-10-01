@@ -19,7 +19,7 @@ const SERVER_PORT: u16      = 3032;
 const WEB_FOLDER: &str = "web/";
 
 #[tokio::main]
-pub async fn server_main(board: Arc<Mutex<&mut Board>>, path: &PathBuf) {
+pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
 
     loop {
         if let Ok(board_lock) = board.try_lock() {
@@ -27,7 +27,7 @@ pub async fn server_main(board: Arc<Mutex<&mut Board>>, path: &PathBuf) {
             board_lock.save(path);
             break;
         } else {
-            println!("")
+            println!("couldn't get lock on init?")
         }
     }
 
@@ -38,20 +38,24 @@ pub async fn server_main(board: Arc<Mutex<&mut Board>>, path: &PathBuf) {
     /*let hi = warp::path("hello").and(warp::get().map(|| "hello")); //GET route that responds with "hello"
     let apis = hi;*/ //if there were more it'd be hi.or(bye).or(dink).or(donk)
 
-    //Static content route
 
     let content = warp::fs::dir(WEB_FOLDER);
 
+    let board_filter = warp::any().map(move || Arc::clone(&board));
+
     let root = warp::get()
         .and(warp::path::end())
+
         .and(warp::fs::file(format!("{}/index.html", WEB_FOLDER)));
 
     let static_site = content.or(root);
 
     let ws_route = warp::path("ws")
         .and(warp::ws())
-        .map(|ws: warp::ws::Ws| { ws.on_upgrade(handle_websocket)
-    });
+        .and(board_filter)
+        .map(|ws: warp::ws::Ws, board| {
+            ws.on_upgrade(move |socket| handle_websocket(socket, board))
+        });
 
     let routes = static_site.or(ws_route);
 
@@ -93,7 +97,7 @@ impl ServerResponse {
     }
 }
 
-async fn handle_websocket(ws: WebSocket) {
+async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>) {
 
     let (mut tx, mut rx) = ws.split();
 
@@ -111,7 +115,17 @@ async fn handle_websocket(ws: WebSocket) {
 
                     if let Ok(result) = response {
                         match result.value.as_str() {
-                            "ready" => server_response = "TODO: response with the board serialized as json".to_string(),
+                            "ready" => {
+                                //let guard = board.try_lock();
+                                loop {
+                                    if let Ok(board_unlocked) = board.try_lock() {
+
+                                        server_response = board_unlocked.serialized();
+                                        break;
+                                    }
+                                }
+                                //server_response = "TODO: response with the board serialized as json".to_string()
+                            },
                             _ => server_response = "unknown request".to_string(),
                         }
                     }

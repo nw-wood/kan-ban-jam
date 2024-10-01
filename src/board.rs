@@ -23,6 +23,11 @@ impl Board {
         self.name.as_str()
     }
 
+    pub fn serialized(&self) -> String {
+        if let Ok(json) = serde_json::to_string(self) { json }
+        else { "{}".to_string() }
+    }
+
     fn say(&self, message: String) {
         println!("{}: {}", self.get_name(), message);
     }
