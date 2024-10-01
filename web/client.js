@@ -14,7 +14,7 @@ socket.onmessage = function(event) {
     //logic needs to be written here (similar to the cli that interprets individual changes incoming from the server, and update the respresentation on the DOM)
     //small changes would be ideal and updated live because all the potentially connected clients are going to receive these at the same time when their updates live!
 
-    document.getElementById('server-output').innerHTML = document.getElementById('server-output').innerHTML + 'Message from server: ' + event.data + ' </br>'
+    document.getElementById('server-output').innerHTML = document.getElementById('server-output').innerHTML + event.data + ' </br>'
 };
 
 // When the connection opens, send a message

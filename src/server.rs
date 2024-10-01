@@ -3,6 +3,8 @@ use crate::board::Board;
 use std::path::PathBuf;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
+use serde::Deserialize;
+use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use warp::ws::Message;
@@ -40,7 +42,9 @@ pub async fn server_main(board: &mut Board, path: &PathBuf) {
 
     let ws_route = warp::path("ws")
         .and(warp::ws())
-        .map(|ws: warp::ws::Ws| { ws.on_upgrade(handle_websocket)
+        .map(|ws: warp::ws::Ws| { ws.on_upgrade(handle_websocket) //<--- board needs to be passed in here, and also needs passed back
+                                                                         //probably going to have to pass an arc::mutex version of it in or something
+                                                                        //probably better as a reference that can be operated on async?
     });
 
     let routes = static_site.or(ws_route);
@@ -52,6 +56,8 @@ pub async fn server_main(board: &mut Board, path: &PathBuf) {
 
     tokio::task::spawn(server);
 
+    let sh = SERVER_ADDR;
+    println!("url: http://{}.{}.{}.{}:{}/", sh[0], sh[1], sh[2], sh[3], SERVER_PORT);
     println!("press enter to shutdown");
 
     let mut buff = String::new();
@@ -61,6 +67,24 @@ pub async fn server_main(board: &mut Board, path: &PathBuf) {
 
     let _ = tx.send(());
 
+}
+
+#[derive(Deserialize, Debug)]
+struct ClientResponse {
+    value: String,
+}
+
+#[derive(Serialize, Debug)]
+struct ServerResponse {
+    value: String,
+}
+
+impl ServerResponse { 
+    fn new(value: String) -> Self {
+        Self {
+            value
+        }
+    }
 }
 
 async fn handle_websocket(ws: WebSocket) {
@@ -80,12 +104,32 @@ async fn handle_websocket(ws: WebSocket) {
                     //the matches are essentially the logic for handling the various datas sent from the client
 
                     //in the case of {"value":"ready"} the entire board should be sent back deserialized as json!
-                    //actually, the values sent from the client pretty much can use very similar logic as the cli amusingly :thonk:
+                    //start thinking like the cli here, but over sockets
+
+                    //a mutable reference to the board needs to be in here somehow
 
                     //we're like a few hops and a skip away from actually doin' this
-                    
-                    println!("received from client: {}", msg);
-                    msg_tx.send(msg).unwrap();
+
+                    let response = serde_json::from_str::<ClientResponse>(msg.as_str());
+
+                    let mut server_response: String = String::new();
+
+                    if let Ok(result) = response {
+                        match result.value.as_str() {
+                            "ready" => server_response = "TODO: response with the board serialized as json".to_string(),
+                            _ => server_response = "unknown request".to_string(),
+                        }
+                    }
+
+                    let server_response = ServerResponse::new(server_response);
+                    //let server_response= serde_json::to_string(&server_response);
+                    if let Ok(json) = serde_json::to_string(&server_response) {
+                        println!("received from client: {}", msg);
+                        println!("sending back: {json}");
+                        msg_tx.send(json).unwrap();
+                    } else {
+                        println!("issue serializing response to the client");
+                    }
                 }
             }
         }
