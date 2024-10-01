@@ -1,6 +1,8 @@
 use crate::board::Board;
 
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
 use serde::Deserialize;
@@ -16,11 +18,17 @@ const SERVER_PORT: u16      = 3032;
 
 const WEB_FOLDER: &str = "web/";
 
+fn with_board( board: Arc<Mutex<&mut Board>> ) -> impl Filter<Extract = (Arc<Mutex<&mut Board>>,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || board.clone())
+}
+
 #[tokio::main]
 pub async fn server_main(board: &mut Board, path: &PathBuf) {
 
     board.list_items();
     board.save(path);
+
+    let shared_board = Arc::new(Mutex::new(board)); //<- mutable ref to board passed into arc mutex
 
     println!("starting server...");
 
@@ -42,9 +50,8 @@ pub async fn server_main(board: &mut Board, path: &PathBuf) {
 
     let ws_route = warp::path("ws")
         .and(warp::ws())
-        .map(|ws: warp::ws::Ws| { ws.on_upgrade(handle_websocket) //<--- board needs to be passed in here, and also needs passed back
-                                                                         //probably going to have to pass an arc::mutex version of it in or something
-                                                                        //probably better as a reference that can be operated on async?
+        .and(with_board(shared_board.clone()))
+        .map(|ws: warp::ws::Ws, board: Arc<Mutex<&mut Board>>| { ws.on_upgrade( |socket| handle_websocket(socket, shared_board.clone())) //<--- board needs to be passed in here
     });
 
     let routes = static_site.or(ws_route);
@@ -87,7 +94,9 @@ impl ServerResponse {
     }
 }
 
-async fn handle_websocket(ws: WebSocket) {
+
+
+async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<&mut Board>>) {
 
     let (mut tx, mut rx) = ws.split();
 
