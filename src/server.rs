@@ -18,19 +18,18 @@ const SERVER_PORT: u16      = 3032;
 
 const WEB_FOLDER: &str = "web/";
 
-fn with_board( board: Arc<Mutex<&mut Board>> ) -> impl Filter<Extract = (Arc<Mutex<&mut Board>>,), Error = std::convert::Infallible> + Clone {
-    warp::any().map(move || board.clone())
-}
-
 #[tokio::main]
-pub async fn server_main(board: &mut Board, path: &PathBuf) {
+pub async fn server_main(board: Arc<Mutex<&mut Board>>, path: &PathBuf) {
 
-    board.list_items();
-    board.save(path);
-
-    let shared_board = Arc::new(Mutex::new(board)); //<- mutable ref to board passed into arc mutex
-
-    println!("starting server...");
+    loop {
+        if let Ok(board_lock) = board.try_lock() {
+            board_lock.list_items();
+            board_lock.save(path);
+            break;
+        } else {
+            println!("")
+        }
+    }
 
     let (tx, rx) = oneshot::channel();
 
@@ -42,6 +41,7 @@ pub async fn server_main(board: &mut Board, path: &PathBuf) {
     //Static content route
 
     let content = warp::fs::dir(WEB_FOLDER);
+
     let root = warp::get()
         .and(warp::path::end())
         .and(warp::fs::file(format!("{}/index.html", WEB_FOLDER)));
@@ -50,8 +50,7 @@ pub async fn server_main(board: &mut Board, path: &PathBuf) {
 
     let ws_route = warp::path("ws")
         .and(warp::ws())
-        .and(with_board(shared_board.clone()))
-        .map(|ws: warp::ws::Ws, board: Arc<Mutex<&mut Board>>| { ws.on_upgrade( |socket| handle_websocket(socket, shared_board.clone())) //<--- board needs to be passed in here
+        .map(|ws: warp::ws::Ws| { ws.on_upgrade(handle_websocket)
     });
 
     let routes = static_site.or(ws_route);
@@ -94,9 +93,7 @@ impl ServerResponse {
     }
 }
 
-
-
-async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<&mut Board>>) {
+async fn handle_websocket(ws: WebSocket) {
 
     let (mut tx, mut rx) = ws.split();
 
@@ -107,17 +104,6 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<&mut Board>>) {
             if let Ok(msg) = result {
                 if msg.is_text() {
                     let msg = msg.to_str().unwrap().to_string();
-                    //so the msg that's received should be in JSON format, and should be in client response format
-                    //that means that it should be taken and serialized into a struct that hasnt been written here yet
-                    //this struct should have some basic implementation that can be matched against
-                    //the matches are essentially the logic for handling the various datas sent from the client
-
-                    //in the case of {"value":"ready"} the entire board should be sent back deserialized as json!
-                    //start thinking like the cli here, but over sockets
-
-                    //a mutable reference to the board needs to be in here somehow
-
-                    //we're like a few hops and a skip away from actually doin' this
 
                     let response = serde_json::from_str::<ClientResponse>(msg.as_str());
 
@@ -131,7 +117,7 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<&mut Board>>) {
                     }
 
                     let server_response = ServerResponse::new(server_response);
-                    //let server_response= serde_json::to_string(&server_response);
+
                     if let Ok(json) = serde_json::to_string(&server_response) {
                         println!("received from client: {}", msg);
                         println!("sending back: {json}");

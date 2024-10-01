@@ -9,6 +9,9 @@ use board::Board;
 use cli::cli_main;
 use server::server_main;
 
+use std::sync::Arc;
+use std::sync::Mutex;
+
 const BOARD_CONFIG: &str = "/.config/kan-ban-jam/kanban_config.json";
 
 fn get_config_path(str_path: &str) -> PathBuf {
@@ -45,7 +48,9 @@ fn main() {
 
     } else if _buff == "s".to_string() {
 
-        server_main(&mut board, &config_path);
+        let async_board = Arc::new(Mutex::new(&mut board)); //< attempt to shove the board into an Arc<Mutex<<&mut ref>>
+
+        server_main(Arc::clone(&async_board), &config_path); //< send in a clone to that reference
 
     }
 

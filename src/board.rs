@@ -2,7 +2,7 @@ use serde::{Serialize, Deserialize};
 use serde_json;
 use std::{fs::{self}, path::{Path, PathBuf}};
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Board {
     name: String,
     items: Vec<Item>,
