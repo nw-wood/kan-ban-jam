@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
 use serde::Deserialize;
-use serde::Serialize;
+//use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use warp::ws::Message;
@@ -26,8 +26,6 @@ pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
             board_lock.list_items();
             board_lock.save(path);
             break;
-        } else {
-            println!("couldn't get lock on init?")
         }
     }
 
@@ -41,7 +39,9 @@ pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
 
     let content = warp::fs::dir(WEB_FOLDER);
 
-    let board_filter = warp::any().map(move || Arc::clone(&board));
+    let board_clone_a = Arc::clone(&board);
+
+    let board_filter = warp::any().map(move || Arc::clone(&board_clone_a));
 
     let root = warp::get()
         .and(warp::path::end())
@@ -73,6 +73,14 @@ pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
     let mut buff = String::new();
     let _ = std::io::stdin().read_line(&mut buff);
 
+    loop {
+        if let Ok(board_lock) = board.try_lock() {
+            board_lock.list_items();
+            board_lock.save(path);
+            break;
+        }
+    }
+
     println!("poof!");
 
     let _ = tx.send(());
@@ -84,7 +92,7 @@ struct ClientResponse {
     value: String,
 }
 
-#[derive(Serialize, Debug)]
+/*#[derive(Serialize, Debug)]
 struct ServerResponse {
     value: String,
 }
@@ -95,7 +103,7 @@ impl ServerResponse {
             value
         }
     }
-}
+}*/
 
 async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>) {
 
@@ -111,33 +119,30 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>) {
 
                     let response = serde_json::from_str::<ClientResponse>(msg.as_str());
 
-                    let mut server_response: String = String::new();
+                    let mut _server_response: String = String::new();
 
                     if let Ok(result) = response {
+
+                        //ws.inspect(f)
+                        
+                        println!("client message: {result:?}");
                         match result.value.as_str() {
                             "ready" => {
                                 //let guard = board.try_lock();
                                 loop {
                                     if let Ok(board_unlocked) = board.try_lock() {
 
-                                        server_response = board_unlocked.serialized();
+                                        _server_response = board_unlocked.serialized();
+                                        println!("sending: {_server_response}");
                                         break;
                                     }
                                 }
                                 //server_response = "TODO: response with the board serialized as json".to_string()
                             },
-                            _ => server_response = "unknown request".to_string(),
+                            _ => _server_response = "unknown request".to_string(),
                         }
-                    }
 
-                    let server_response = ServerResponse::new(server_response);
-
-                    if let Ok(json) = serde_json::to_string(&server_response) {
-                        println!("received from client: {}", msg);
-                        println!("sending back: {json}");
-                        msg_tx.send(json).unwrap();
-                    } else {
-                        println!("issue serializing response to the client");
+                        msg_tx.send(_server_response).unwrap();
                     }
                 }
             }

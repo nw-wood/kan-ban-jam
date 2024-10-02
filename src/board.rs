@@ -4,7 +4,7 @@ use std::{fs::{self}, path::{Path, PathBuf}};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Board {
-    name: String,
+    board_name: String,
     items: Vec<Item>,
     statuses: Vec<String>,
 }
@@ -13,14 +13,14 @@ impl Board {
 
     fn new(name: &str, statuses: Vec<String>) -> Self {
         Self {
-            name: name.to_string(),
+            board_name: name.to_string(),
             items: vec![],
             statuses,
         }
     }
 
     fn get_name(&self) -> &str { //todo: update board to use the actual name of the board, and convey that to web client too
-        self.name.as_str()
+        self.board_name.as_str()
     }
 
     pub fn serialized(&self) -> String {

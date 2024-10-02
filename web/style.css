@@ -1,0 +1,17 @@
+* {
+	font-family: Arial, Helvetica, sans-serif;
+}
+
+.status-columns {
+	flex-direction: row;
+	display: flex;
+	background-color: grey;
+	width: 100%;
+}
+
+.status {
+	flex: 1;
+	text-align: center;
+}
+/*css all block
+comment style*/

@@ -5,16 +5,26 @@ console.log('hello from js!');
 socket.onmessage = function(event) {
     console.log('Message from server:', event.data);
 
-    //messages back from the server are going to start coming in here as deserialized json
-    //the first message back will be the entire board as json
-    //since the board comes back in this way here is where the bulk of the web page needs to be generated
+    //handle responses from the server here!
 
-    //here is where the logic will be that takes the response types into consideration, and operates on the DOM to show visual changes
+    let jsonObj = JSON.parse(event.data);
 
-    //logic needs to be written here (similar to the cli that interprets individual changes incoming from the server, and update the respresentation on the DOM)
-    //small changes would be ideal and updated live because all the potentially connected clients are going to receive these at the same time when their updates live!
+    //update the name for the board on the page
+    document.getElementById('board-name').innerHTML = jsonObj.board_name;
 
-    document.getElementById('server-output').innerHTML = document.getElementById('server-output').innerHTML + event.data + ' </br>'
+    for(let current_status = 0; current_status < jsonObj.statuses.length; current_status++) {
+        let status = jsonObj.statuses[current_status];
+        for (let current_item = 0; current_item < jsonObj.items.length; current_item++) {
+            let item = jsonObj.items[current_item];
+            //console.log(item);
+            //if item.status == status
+        }
+        document.getElementById('status-columns').innerHTML = document.getElementById('status-columns').innerHTML + '<div class="status">' + jsonObj.statuses[current_status] + '</div>';
+    }
+
+    //little debug output below the stuff
+    document.getElementById('server-output').innerHTML = document.getElementById('server-output').innerHTML + event.data + ' </br>';
+
 };
 
 // When the connection opens, send a message
