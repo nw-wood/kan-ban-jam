@@ -16,7 +16,7 @@ socket.onmessage = function(event) {
 
         let col_by_id = document.getElementById('status-columns');
 
-        col_by_id.innerHTML += '<div id="status-' + status + '">'+status+'<div id = "item-box-'+status+'"></div>';
+        col_by_id.innerHTML += '<div id="status-' + status + '">'+status.toUpperCase()+'<div id = "item-box-'+status+'"></div>';
 
         for (let current_item = 0; current_item < jsonObj.items.length; current_item++) {
 
@@ -25,11 +25,24 @@ socket.onmessage = function(event) {
             if (item.status == status) {
                 console.log(item.name + ' had status ' + status);
                 let item_box_by_id = document.getElementById('item-box-'+status);
-                item_box_by_id.innerHTML += item.name + '<br>';
+                item_box_by_id.innerHTML +=
+                    '<div id="item-cont">'+
+                        '<div id="item-name">'+
+                            '<div id="name-container">'+ item.name + '</div>'+
+                            '<div id ="demote-box" class="'+item.name+'">↓</div>'+
+                            '<div id ="promote-box" class="'+item.name+'">↑</div>'+
+                            '<div id ="edit-content-box" class="'+item.name+'">✎</div>'+
+                            '<div id ="remove-item-box" class="'+item.name+'">✖</div>'+
+                        '</div>'+
+                        '<div id="item-contents">'+item.contents + '</div></div>'+
+                    '</div>';
+                    //modal pop up thing with text box input to change the contents of the item
+                    //check cli for more
+                    //ARE YOU SURE ABOUT THAT? confirmation modal on remove
+                    //some kind of first time 'help' dialog and cookie set to prevent it from happening again would be worth spending time on to learn
             }
         }
     }
-
     document.getElementById('server-output').innerHTML += event.data + ' </br>';
 
 };
