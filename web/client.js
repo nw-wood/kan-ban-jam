@@ -2,6 +2,8 @@ const socket = new WebSocket('ws://192.168.1.169:3032/ws');
 
 console.log('hello from js!');
 
+
+
 socket.onmessage = function(event) {
 
     console.log('Message from server:', event.data);

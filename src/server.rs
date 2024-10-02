@@ -21,12 +21,9 @@ const WEB_FOLDER: &str = "web/";
 #[tokio::main]
 pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
 
-    loop {
-        if let Ok(board_lock) = board.try_lock() {
-            board_lock.list_items();
-            board_lock.save(path);
-            break;
-        }
+    if let Ok(board_lock) = board.lock() {
+        board_lock.list_items();
+        board_lock.save(path);  
     }
 
     let (tx, rx) = oneshot::channel();
@@ -36,7 +33,6 @@ pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
     /*let hi = warp::path("hello").and(warp::get().map(|| "hello")); //GET route that responds with "hello"
     let apis = hi;*/ //if there were more it'd be hi.or(bye).or(dink).or(donk)
 
-
     let content = warp::fs::dir(WEB_FOLDER);
 
     let board_clone_a = Arc::clone(&board);
@@ -45,12 +41,11 @@ pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
 
     let root = warp::get()
         .and(warp::path::end())
-
         .and(warp::fs::file(format!("{}/index.html", WEB_FOLDER)));
 
     let static_site = content.or(root);
 
-    let ws_route = warp::path("ws")
+    let ws_route = warp::path("ws") 
         .and(warp::ws())
         .and(board_filter)
         .map(|ws: warp::ws::Ws, board| {
@@ -103,7 +98,7 @@ impl ServerResponse {
             value
         }
     }
-}*/
+}*/  
 
 async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>) {
 
@@ -129,13 +124,9 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>) {
                         match result.value.as_str() {
                             "ready" => {
                                 //let guard = board.try_lock();
-                                loop {
-                                    if let Ok(board_unlocked) = board.try_lock() {
-
-                                        _server_response = board_unlocked.serialized();
-                                        println!("sending: {_server_response}");
-                                        break;
-                                    }
+                                if let Ok(board_unlocked) = board.lock() {
+                                    _server_response = board_unlocked.serialized();
+                                    println!("sending: {_server_response}");
                                 }
                                 //server_response = "TODO: response with the board serialized as json".to_string()
                             },
