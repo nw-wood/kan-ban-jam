@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
 use serde::Deserialize;
-//use serde::Serialize;
+use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use warp::ws::Message;
@@ -84,21 +84,15 @@ pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
 
 #[derive(Deserialize, Debug)]
 struct ClientResponse {
-    value: String,
+    command: String,
+    args: Vec<String>,
 }
 
-/*#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug)]
 struct ServerResponse {
-    value: String,
+    command: String,
+    args: Vec<String>,
 }
-
-impl ServerResponse { 
-    fn new(value: String) -> Self {
-        Self {
-            value
-        }
-    }
-}*/  
 
 async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>) {
 
@@ -114,23 +108,40 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>) {
 
                     let response = serde_json::from_str::<ClientResponse>(msg.as_str());
 
-                    let mut _server_response: String = String::new();
-
                     if let Ok(result) = response {
 
-                        //ws.inspect(f)
-                        
                         println!("client message: {result:?}");
-                        match result.value.as_str() {
-                            "ready" => {
-                                //let guard = board.try_lock();
+
+                        let mut _server_response: String = String::new();
+
+                        match &result.command.as_str() {
+
+                            &"ready" => {
                                 if let Ok(board_unlocked) = board.lock() {
-                                    _server_response = board_unlocked.serialized();
-                                    println!("sending: {_server_response}");
+                                    let response = ServerResponse {
+                                        command: "build".to_string(),
+                                        args:  vec![board_unlocked.serialized()],
+                                    };
+                                    _server_response = serde_json::to_string(&response).unwrap();
                                 }
-                                //server_response = "TODO: response with the board serialized as json".to_string()
                             },
-                            _ => _server_response = "unknown request".to_string(),
+                            &"add" => {
+                                if let Ok(mut board_unlocked) = board.lock() {
+                                    board_unlocked.add_item(result.args[0].as_str(), result.args[1].as_str());
+                                    let response = ServerResponse {
+                                        command: "add".to_string(),
+                                        args:  result.args,
+                                    };
+                                    _server_response = serde_json::to_string(&response).unwrap();
+                                }
+                            }
+                            _ => {
+                                let response = ServerResponse {
+                                    command: "unknown".to_string(),
+                                    args:  vec![],
+                                };
+                                _server_response = serde_json::to_string(&response).unwrap();
+                            }
                         }
 
                         msg_tx.send(_server_response).unwrap();

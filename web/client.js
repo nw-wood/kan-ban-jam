@@ -1,8 +1,28 @@
+function add_new_item() {
+
+    console.log('todo: add new item');
+
+    let input_name = document.getElementById('item-name-input').value;
+    let input_content = document.getElementById('item-content-input').value;
+
+    if (input_name != '' && input_content != '') {
+        const add_item_response = {
+            command: 'add',
+            args: [input_name, input_content],
+        }
+        let req_as_json = JSON.stringify(add_item_response);
+        console.log('sending: ' + req_as_json);
+        socket.send(req_as_json);
+    } else {
+        console.log('handle empty fields complaint');
+    }
+}
+
 const socket = new WebSocket('ws://192.168.1.169:3032/ws');
 
 console.log('hello from js!');
 
-
+document.getElementById('add-button').addEventListener("click", add_new_item);
 
 socket.onmessage = function(event) {
 
@@ -11,7 +31,7 @@ socket.onmessage = function(event) {
     let jsonObj = JSON.parse(event.data);
 
     document.getElementById('board-name').innerHTML = jsonObj.board_name;
-
+    //TODO: on message needs to handle server responses as json instead of just assuming it's the entire board now
     for(let current_status = 0; current_status < jsonObj.statuses.length; current_status++) {
 
         let status = jsonObj.statuses[current_status];
@@ -46,17 +66,17 @@ socket.onmessage = function(event) {
         }
     }
     document.getElementById('server-output').innerHTML += event.data + ' </br>';
-
 };
 
 socket.onopen = function() {
 
-    const onopen_response = {
-        value: 'ready'
+    const ready_response = {
+        command: 'ready',
+        args: [],
     }
 
-    let req_as_json = JSON.stringify(onopen_response);
-
+    let req_as_json = JSON.stringify(ready_response);
+    console.log('ready; sending: ' + req_as_json);
     socket.send(req_as_json);
 };
 
