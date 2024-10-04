@@ -106,3 +106,15 @@ body {
 	border-color: black;
 	background-color: lightyellow;
 }
+
+#edit-content-modal {
+	background-color: white;
+	border: 1px solid;
+	width: fit-content;
+	padding: 10px;
+	text-align: center;
+	position: absolute;
+	right: 50%;
+	top: 50%;
+	display: none;
+}

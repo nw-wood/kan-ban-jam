@@ -8,13 +8,15 @@ var htmlString = `
     <br>
     <br>
     <div id = "server-output"></div>
+    <div id = "edit-content-modal">New content: <input type = "text" name="edit-content-input-box" id="edit-content-input">
+    <button type="button" id="add-button">Edit!</button></div>
     `;
 
 function build_board(response) {
     console.log('building board...');
     let parser = new DOMParser();
     const doc = parser.parseFromString(htmlString, 'text/html');
-    doc.getElementById('add-button').innerHTML = 'Add it?';
+    //doc.getElementById('add-button').innerHTML = 'Add it?';
     doc.getElementById('board-name').innerHTML = response.board_name;
 
     for(let current_status = 0; current_status < response.statuses.length; current_status++) {
@@ -51,6 +53,14 @@ function build_board(response) {
 
     document.getElementsByTagName('body')[0].innerHTML = doc.documentElement.outerHTML;
     
+}
+
+function show_edit_modal(edit_content_box) {
+    let modal = document.getElementById('edit-content-modal');
+    modal.className = edit_content_box.slice(0, -12);
+    console.log('set modal class to: ' + modal.className);
+    modal.style.display = 'block';
+    modal_is_shown = true;
 }
 
 function add_new_item() {
@@ -110,6 +120,8 @@ function remove_item_func(remove_item_box) {
     socket.send(JSON.stringify(response));
 }
 
+
+
 console.log('starting web socket...');
 
 const socket = new WebSocket('ws://192.168.1.169:3032/ws');
@@ -117,7 +129,7 @@ const socket = new WebSocket('ws://192.168.1.169:3032/ws');
 socket.onmessage = function(event) {
     if (event.data != '') {
         build_board(JSON.parse(event.data));
-        
+
         document.getElementById('add-button').addEventListener("click", add_new_item);
     
         const demote_boxes = document.querySelectorAll('#demote-box');
@@ -129,10 +141,19 @@ socket.onmessage = function(event) {
         promote_boxes.forEach(box => document.getElementsByClassName(box.className)[0].addEventListener("click", () => promote_func(box.className)));
 
         const edit_content_boxes = document.querySelectorAll('#edit-content-box');
-        edit_content_boxes.forEach(box => document.getElementsByClassName(box.className)[0].addEventListener("click", () => edit_content_func(box.className)));
+        edit_content_boxes.forEach(box => document.getElementsByClassName(box.className)[0].addEventListener("click", () => show_edit_modal(box.className)));
 
         const remove_item_boxes = document.querySelectorAll('#remove-item-box');
         remove_item_boxes.forEach(box => document.getElementsByClassName(box.className)[0].addEventListener("click", () => remove_item_func(box.className)));
+
+        const modal_box = document.getElementById('edit-content-modal');
+
+        document.addEventListener('click', (event) => {
+            if(!modal_box.contains(event.target)) {
+                console.log("happens first");
+                modal_box.style.display = 'none';
+            }
+        }, true);
 
     } else {
         console.log("server ignored sent request");
