@@ -1,115 +1,140 @@
 use serde::{Serialize, Deserialize};
 use serde_json;
+use core::fmt;
 use std::{fs::{self}, path::{Path, PathBuf}};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Board {
     board_name: String,
     items: Vec<Item>,
-    statuses: Vec<String>,
+    statuses: Vec<Status>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum Status {
+    New,
+    WorkInProgress,
+    Review,
+    Done,
+}
+
+impl Status {
+    fn next(&self) -> Option<Status> {
+        match self {
+            Status::New => Some(Status::WorkInProgress),
+            Status::WorkInProgress => Some(Status::Review),
+            Status::Review => Some(Status::Done),
+            Status::Done => { println!("unable to demote item"); None },
+        }
+    }
+    fn previous(&self) -> Option<Status> {
+        match self {
+            Status::New => { println!("unable to promote item"); None },
+            Status::WorkInProgress => Some(Status::New),
+            Status::Review => Some(Status::WorkInProgress),
+            Status::Done => Some(Status::Review),
+        }
+    }
+    fn all() -> Vec<Status> {
+        vec![
+            Status::New,
+            Status::WorkInProgress,
+            Status::Review,
+            Status::Done,
+        ]
+    }
+}
+
+impl fmt::Display for Status {
+    //TODO: &mut fmt::Formatter<'_> - I don't understand the provided '_ type
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Status::New => write!(f, "New"),
+            Status::WorkInProgress => write!(f, "Work in Progress"),
+            Status::Review => write!(f, "Review"),
+            Status::Done => write!(f, "Done"),
+        }
+    }
 }
 
 impl Board {
 
-    pub fn new(name: &str, statuses: Vec<String>) -> Self {
+    pub fn new(name: &str) -> Self {
         Self {
             board_name: name.to_string(),
             items: vec![],
-            statuses,
+            statuses: Status::all(),
         }
     }
 
-    fn get_name(&self) -> &str { //todo: update board to use the actual name of the board, and convey that to web client too
-        self.board_name.as_str()
+    fn get_name(&self) -> &str {
+        &self.board_name
     }
 
-    pub fn serialized(&self) -> String {
-        if let Ok(json) = serde_json::to_string(self) 
-        { 
-            json
-        }
-        else { "{}".to_string() }
+    pub fn serialized(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(self)
     }
 
-    /* */
-
-    fn say(&self, message: String) {
-        println!("{}: {}", self.get_name(), message);
-    }
-    
     pub fn open_from_file(path: &Path) -> Self {
         if let Ok(contents) = fs::read_to_string(path) {
-            if let Ok(json) = serde_json::from_str::<Board>(&contents) { //WE'RE GOIN TURBO FISHIN' BOIIIZ
-                println!("{}: loaded board from previous save...", json.get_name());
-                return json;
+            if let Ok(deserialized_board) = serde_json::from_str::<Board>(&contents) {
+
+                println!("{}: loaded board from previous save...", deserialized_board.get_name());
+                return deserialized_board;
+
             } else { println!("unable to deserialize json in config file!"); }
         } else { println!("unable to read contents from config file!"); }
 
-        Board::new("kan-ban-board", vec!["new".to_string(), "wip".to_string(), "review".to_string(), "done".to_string()])
+        Board::new("default-board")
     }
 
     pub fn list_items(&self) {
-        self.say("printing item lists...".to_string());
-        //println!("{}: printing item list...", self.get_name());
-        self.items.iter().for_each(|item| self.say(format!("item; name: '{}', status: '{}', contents: '{}'", item.name, item.status, item.contents)));
+        println!("printing item lists...");
+        self.items.iter().for_each(|item| println!("item; name: '{}', status: '{}', contents: '{}'", item.name, item.status, item.contents));
     }
 
     pub fn save(&self, path: &PathBuf) {
         match serde_json::to_string(&self) {
             Ok(json) => {
                 match fs::write(&path, json) {
-                    Ok(_) => self.say("saved board!".to_string()),
-                    Err(e) => self.say(format!("couldn't save; '{e}', config path: '{}'", path.display())),
+                    Ok(_) => println!("saved board!"),
+                    Err(e) => println!("couldn't save; '{e}', config path: '{}'", path.display()),
                 }
             }
-            Err(e) => self.say(format!("couldn't serialize to JSON: '{e}'")),
+            Err(e) => println!("couldn't serialize to JSON: '{e}'"),
         }
     }
 
     pub fn add_item(&mut self, name: &str, contents: &str) {
 
         if let Some(_)  = self.items.iter().find(|item| item.name == name) { 
-            self.say(format!("can't add '{name}' because it already exists")); 
-        } else { 
-            self.items.push(Item::new(name, contents, self.statuses[0].as_str()));
-            self.say(format!("added item to board; item: '{name}', contents: '{contents}', status: '{}'",self.statuses[0].as_str()));
+            println!("can't add '{name}' because it already exists"); 
+        } else {
+            self.items.push(Item::new(name, contents));
+            println!("added item to board; item: '{name}', contents: '{contents}', status: '{}'", &self.statuses[0]);
         }
     }
 
     pub fn demote_item(&mut self, name: &str) {
         if let Some(item) = self.items.iter_mut().find(|item| item.name == name) {
-            if let Some(index) = self.statuses.iter().position(|status| &item.status == status) {
-                if index > 0 {
-
-                    item.set_status(&self.statuses[index - 1]);
-                    self.say(format!("updated status of item; item: '{name}', new status: '{}'", &self.statuses[index - 1]));
-
-                } else { self.say("couldn't promote because already lowest possible status".to_string()); }
-            } else { self.say("couldn't find matching status index (shouldn't ever happen)".to_string()); }
-        } else { self.say(format!("couldn't find item '{name}'")); }
+            item.demote();
+        } else { println!("couldn't find item '{name}'"); }
     }
 
     pub fn promote_item(&mut self, name: &str) {
         if let Some(item) = self.items.iter_mut().find(|item| item.name == name) {
-            if let Some(index) = self.statuses.iter().position(|status| &item.status == status ) {
-                if index < self.statuses.len() - 1 {
-
-                    item.set_status(&self.statuses[index + 1]);
-                    println!("updated status of item; item: '{name}', new status: '{}'", &self.statuses[index + 1]);
-
-                } else { self.say("couldn't promote because already highest possible status".to_string()); }
-            } else { self.say("couldn't find matching status index (shouldn't ever happen)".to_string()); }
-        } else { self.say(format!("couldn't find item '{name}'")); }
+            item.promote();
+        } else { println!("couldn't find item '{name}'"); }
     }
 
     pub fn rename_item(&mut self, name: &str, new_name: &str) {
         if let Some(item) = self.items.iter_mut().find(|item| item.name == name) {
 
             item.set_name(new_name);
-            self.say(format!("set name of '{name}' to '{new_name}'"));
+            println!("set name of '{name}' to '{new_name}'");
 
         } else {
-            self.say(format!("couldn't find item '{name}'"));
+            println!("couldn't find item '{name}'");
         }
     }
 
@@ -117,10 +142,10 @@ impl Board {
         if let Some(item) = self.items.iter_mut().find(|item| item.name == name) {
 
             item.set_contents(new_contents);
-            self.say(format!("set contents of '{name}' to '{new_contents}'"));
+            println!("set contents of '{name}' to '{new_contents}'");
 
         } else {
-            self.say(format!("couldn't find item '{name}'"));
+            println!("couldn't find item '{name}'");
         }
     }
 
@@ -128,32 +153,44 @@ impl Board {
         if let Some(index) = self.items.iter().position(|item| item.name == name) {
 
             self.items.remove(index);
-            self.say(format!("removed item '{name}' from the board"));
+            println!("removed item '{name}' from the board");
 
         } else {
-            self.say(format!("couldn't find item '{name}'"));
+            println!("couldn't find item '{name}'");
         }
     }
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Item {
     name: String,
     contents: String,
-    status: String,
+    status: Status,
 }
 
 impl Item {
-    fn new(name: &str, contents: &str, status: &str) -> Self {
+
+    fn new(name: &str, contents: &str) -> Self {
         Self {
             name: name.to_string(),
             contents: contents.to_string(),
-            status: status.to_string(),
+            status: Status::New,
         }
     }
 
-    fn set_status(&mut self, status: &str)          { self.status = status.to_string(); }
+    fn promote(&mut self) {
+        if let Some(status) = self.status.next() {
+            self.status = status;
+        }
+    }
+
+    fn demote(&mut self) {
+        if let Some(status) = self.status.previous() {
+            self.status = status;
+        }
+    }
+
     fn set_name(&mut self, name: &str)              { self.name = name.to_string(); }
+    
     fn set_contents(&mut self, new_contents: &str)  { self.contents = new_contents.to_string(); }
 }

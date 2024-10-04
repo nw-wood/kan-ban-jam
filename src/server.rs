@@ -14,26 +14,22 @@ const WEB_FOLDER: &str = "web/";
 
 #[tokio::main]
 
-//TODO: spend time with async as a keyword - make more simple examples work
-//TODO: spend more time with Paths and PathBuf and learn more of their methods as they are fairly common
 pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
-    //TODO: although not explicitly written here, there is an await after this locking func I believe, and I should spend more time understanding await
+    
     if let Ok(board_lock) = board.lock() {
         board_lock.list_items();
         board_lock.save(path);
     }
-    //TODO: I believe this is a mspc impl that gets dropped immediately after use, but will have to read into it
+    
     let (tx, rx) = tokio::sync::oneshot::channel();
 
-    //TODO: Spend more time setting up and tinkering with less or even more complicated warp filter combinations
+    
     let content = warp::fs::dir(WEB_FOLDER);
 
-    //TODO: Reread the rust book documentation on some of the available smart pointers like Rc and RefCells and Arc
-    //TODO: Understand how atomics works better because right now it's an 'lol thread safe variable'
+    
     let board_clone_a = Arc::clone(&board);
     let board_filter = warp::any().map(move || Arc::clone(&board_clone_a));
 
-    // Shared state to store connected WebSocket clients
     let clients = Arc::new(Mutex::new(Vec::new()));
     let clients_filter = warp::any().map(move || Arc::clone(&clients));
 
@@ -47,16 +43,13 @@ pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
         .and(warp::ws())
         .and(board_filter)
         .and(clients_filter.clone())
-        //TODO: I'm not entirely sure how this ws return implementation fires back the ws to the map - I need to learn what 'upgrading' is
+        
         .map(|ws: warp::ws::Ws, board, clients| {
             ws.on_upgrade(move |socket| handle_websocket(socket, board, clients))
         });
 
     let routes = static_site.or(ws_route);
 
-    //TODO: test and make up examples of Trait bound implementations because this is excessively difficult to interpret
-    //  the bind with graceful shutdown method has so many of them I really couldn't say what every single one implied all together
-    //  some of the trait bounds here are fairly common and I should learn better usage anyways (clone, send, sync, 'static)
     let (_addr, server) = warp::serve(routes)
         .bind_with_graceful_shutdown((SERVER_ADDR, SERVER_PORT), async {
             rx.await.ok();
@@ -81,10 +74,10 @@ pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
 
     println!("poof!");
 
-    //TODO: setup small arbitrary examples of mspcs, oneshots, broadcast channels and so on to experiment and learn
     let _ = tx.send(());
 }
 
+#[derive(Clone)]
 struct Client {
     id: usize,
     sender: UnboundedSender<Message>,
@@ -99,29 +92,25 @@ struct ClientResponse {
 fn remove_stale_clients(clients: &Arc<Mutex<Vec<Client>>>) {
     let mut clients = clients.lock().unwrap();
     clients.retain(|client| {
-        //TODO: look into message implementaions for warp filters (it's various methods and usage is kind of a mystery)
+        
         client.sender.send(Message::ping(vec![])).is_ok()
     });
 }
 
 async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>, clients: Arc<Mutex<Vec<Client>>>) {
-    //TODO: understand sinks and streams in this context, the spit function here seperates them, and I believe they basically refer to the transmit and recv
-    //  end of message passing functionality
+    
     let (mut tx, mut rx) = ws.split();
     let (msg_tx, mut msg_rx) = mpsc::unbounded_channel();
     
-    // Generate a unique client ID
     let client_id = {
         let clients = clients.lock().unwrap();
         clients.len()
     };
 
-    // Add new client to the list
+    //scoped
     {
         let mut clients_guard = clients.lock().unwrap();
-        //TODO: try to think like this more often... my thoughts were the message senders into a vector, but making them into an object
-        //  and putting those into a vector makes a lot more sense, and makes them more manageable since methods could be implemented on
-        //  the clients structure now
+        
         clients_guard.push(Client {
             id: client_id,
             sender: msg_tx.clone(),
@@ -131,7 +120,6 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>, clients: Arc<
 
     let clients_clone = Arc::clone(&clients);
 
-    // Handle incoming messages and cleanup in a single task
     tokio::spawn({
         let board_clone = Arc::clone(&board);
         async move {
@@ -173,14 +161,13 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>, clients: Arc<
                                     }
                                 };
 
-                                // If we have a response, broadcast it to all clients
-                                if let Some(response) = server_response {
-                                    // Clean up stale clients before broadcasting
+                                if let Some(Ok(response)) = server_response {
+
                                     remove_stale_clients(&clients_clone);
                                     
                                     let clients_guard = clients_clone.lock().unwrap();
                                     for client in clients_guard.iter() {
-                                        if let Err(e) = client.sender.send(Message::text(response.clone())) {
+                                        if let Err(e) = client.sender.send(Message::text(&response)) {
                                             eprintln!("Failed to send message to client {}: {}", client.id, e);
                                         }
                                     }
@@ -195,15 +182,13 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>, clients: Arc<
                 }
             }
 
-            // Clean up the disconnected client
+
             let mut clients = clients_clone.lock().unwrap();
             let client_count_before = clients.len();
             clients.retain(|client| {
                 if client.id == client_id {
-                    // Remove this specific client
                     false
                 } else {
-                    // Keep other clients if they're still connected
                     client.sender.send(Message::ping(vec![])).is_ok()
                 }
             });
@@ -214,7 +199,6 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>, clients: Arc<
         }
     });
 
-    // Send board state to the client periodically
     tokio::spawn({
         let board_clone = Arc::clone(&board);
         async move {
@@ -224,9 +208,9 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>, clients: Arc<
                     board_unlocked.serialized()
                 };
 
-                if let Err(e) = tx.send(Message::text(&serialized)).await {
+                if let Err(e) = tx.send(Message::text(&serialized.unwrap())).await {
                     eprintln!("Failed to send message to client {}: {}", client_id, e);
-                    break;  // Exit the loop if we can't send to this client
+                    break;
                 }
             }
         }

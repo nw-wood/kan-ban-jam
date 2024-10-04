@@ -1,12 +1,8 @@
 mod board;
-mod cli;
 mod server;
-
 use env_home;
 use std::path::{Path, PathBuf};
-
 use board::Board;
-use cli::cli_main;
 use server::server_main;
 
 use std::sync::Arc;
@@ -30,28 +26,27 @@ fn main() {
 
     let config_path = get_config_path(BOARD_CONFIG);
 
-    let mut board = Board::open_from_file(&config_path);
+    let board = Board::open_from_file(&config_path);
 
-    //server_main(&mut board, &config_path); //rather do this faster for development
-
-    println!("cli or server? (type c or s)");
-
-    let mut _buff: String = String::new();
-
-    _buff = String::new();
-    let _ = std::io::stdin().read_line(&mut _buff);
-    _buff.pop();
-
-    if _buff == "c".to_string() {
-
-        cli_main(&mut board, &config_path);
-
-    } else if _buff == "s".to_string() {
-
-        let async_board = Arc::new(Mutex::new(board)); //< attempt to shove the board into an Arc<Mutex<<&mut ref>>
-
-        server_main(async_board, &config_path); //< send in a clone to that reference
-
-    }
+    server_main(Arc::new(Mutex::new(board)), &config_path);
 
 }
+
+//TODO: spend time with async as a keyword - make more simple examples work
+//TODO: spend more time with Paths and PathBuf and learn more of their methods as they are fairly common
+//TODO: although not explicitly written here, there is an await after this locking func I believe, and I should spend more time understanding await
+//TODO: I believe this is a mspc impl that gets dropped immediately after use, but will have to read into it
+//TODO: Spend more time setting up and tinkering with less or even more complicated warp filter combinations
+//TODO: Reread the rust book documentation on some of the available smart pointers like Rc and RefCells and Arc
+//TODO: Understand how atomics works better because right now it's an 'lol thread safe variable'
+//TODO: I'm not entirely sure how this ws return implementation fires back the ws to the map - I need to learn what 'upgrading' is
+//TODO: test and make up examples of Trait bound implementations because this is excessively difficult to interpret
+    //  the bind with graceful shutdown method has so many of them I really couldn't say what every single one implied all together
+    //  some of the trait bounds here are fairly common and I should learn better usage anyways (clone, send, sync, 'static)
+//TODO: setup small arbitrary examples of mspcs, oneshots, broadcast channels and so on to experiment and learn
+//TODO: look into message implementaions for warp filters (it's various methods and usage is kind of a mystery)
+//TODO: understand sinks and streams in this context, the spit function here seperates them, and I believe they basically refer to the transmit and recv
+    //  end of message passing functionality
+//TODO: try to think like this more often... my thoughts were the message senders into a vector, but making them into an object
+        //  and putting those into a vector makes a lot more sense, and makes them more manageable since methods could be implemented on
+        //  the clients structure now

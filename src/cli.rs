@@ -1,4 +1,4 @@
-use crate::board::Board;
+/*use crate::board::Board;
 use regex::Regex;
 use std::path::PathBuf;
 use std::process;
@@ -76,7 +76,6 @@ pub fn cli_main(board: &mut Board, config_path: &PathBuf) {
                     "list" => board.list_items(),
                     "help" => println!("commands are list, help, format, rename, update, remove, promote, demote, add, and exit"),
                     "format" => println!("commands must be provided as 'command \"name wth spaces\" \"second input with spaces\"'; or simple commands as 'command name_without_spaces second input with or without spaces or quotes"),
-                    // => "unknown command",
                     _ => println!("unknown command"),
                 }
             },
@@ -87,4 +86,4 @@ pub fn cli_main(board: &mut Board, config_path: &PathBuf) {
     board.save(&config_path);
     process::exit(0);
     
-}
+}*/
