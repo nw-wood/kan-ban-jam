@@ -18,6 +18,8 @@ function build_board(response) {
     const doc = parser.parseFromString(htmlString, 'text/html');
     doc.getElementById('board-name').innerHTML = response.board_name;
 
+    console.log("received incoming configuration...");
+
     for(let current_status = 0; current_status < response.statuses.length; current_status++) {
 
         let status = response.statuses[current_status];
@@ -128,6 +130,7 @@ const socket = new WebSocket('ws://192.168.1.169:3032/ws');
 
 socket.onmessage = function(event) {
     if (event.data != '') {
+        console.log('data wasnt empty - ' + event.data);
         build_board(JSON.parse(event.data));
 
         document.getElementById('add-button').addEventListener("click", add_new_item);

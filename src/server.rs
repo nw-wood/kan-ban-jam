@@ -1,41 +1,33 @@
 use crate::board::Board;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::Mutex;
-use futures_util::SinkExt;
-use futures_util::StreamExt;
+use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
-use tokio::sync::mpsc;
-use tokio::sync::oneshot;
-use warp::ws::Message;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc::{self, UnboundedSender};
 use warp::filters::ws::WebSocket;
+use warp::ws::Message;
 use warp::Filter;
 
 const SERVER_ADDR: [u8; 4] = [192, 168, 1, 169];
-const SERVER_PORT: u16      = 3032;
-
+const SERVER_PORT: u16 = 3032;
 const WEB_FOLDER: &str = "web/";
 
 #[tokio::main]
 pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
-
     if let Ok(board_lock) = board.lock() {
         board_lock.list_items();
-        board_lock.save(path);  
+        board_lock.save(path);
     }
 
-    let (tx, rx) = oneshot::channel();
-
-    //API routes
-
-    /*let hi = warp::path("hello").and(warp::get().map(|| "hello")); //GET route that responds with "hello"
-    let apis = hi;*/ //if there were more it'd be hi.or(bye).or(dink).or(donk)
+    let (tx, rx) = tokio::sync::oneshot::channel();
 
     let content = warp::fs::dir(WEB_FOLDER);
-
     let board_clone_a = Arc::clone(&board);
-
     let board_filter = warp::any().map(move || Arc::clone(&board_clone_a));
+
+    // Shared state to store connected WebSocket clients
+    let clients = Arc::new(Mutex::new(Vec::new()));
+    let clients_filter = warp::any().map(move || Arc::clone(&clients));
 
     let root = warp::get()
         .and(warp::path::end())
@@ -43,11 +35,12 @@ pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
 
     let static_site = content.or(root);
 
-    let ws_route = warp::path("ws") 
+    let ws_route = warp::path("ws")
         .and(warp::ws())
         .and(board_filter)
-        .map(|ws: warp::ws::Ws, board| {
-            ws.on_upgrade(move |socket| handle_websocket(socket, board))
+        .and(clients_filter.clone())
+        .map(|ws: warp::ws::Ws, board, clients| {
+            ws.on_upgrade(move |socket| handle_websocket(socket, board, clients))
         });
 
     let routes = static_site.or(ws_route);
@@ -77,7 +70,6 @@ pub async fn server_main(board: Arc<Mutex<Board>>, path: &PathBuf) {
     println!("poof!");
 
     let _ = tx.send(());
-
 }
 
 #[derive(Deserialize, Debug)]
@@ -86,67 +78,88 @@ struct ClientResponse {
     args: Vec<String>,
 }
 
-async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>) {
-
+async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>, clients: Arc<Mutex<Vec<UnboundedSender<Message>>>>) {
     let (mut tx, mut rx) = ws.split();
-
     let (msg_tx, mut msg_rx) = mpsc::unbounded_channel();
 
-    tokio::spawn(async move {
-        while let Some(result) = rx.next().await {
-            if let Ok(msg) = result {
-                if msg.is_text() {
-                    let msg = msg.to_str().unwrap().to_string();
+    {
+        let mut clients_guard = clients.lock().unwrap();
+        clients_guard.push(msg_tx.clone());
+        println!("New socket connection pushed to clients_guard");
+    }
 
-                    let response = serde_json::from_str::<ClientResponse>(msg.as_str());
+    let clients_clone = Arc::clone(&clients);
 
-                    if let Ok(result) = response {
-
-                        println!("client message: {result:?}");
-
-                        let mut server_response: String = String::new();
-
-                        if let Ok(mut board_unlocked) = board.lock() {
-
-                            match &result.command.as_str() {
-
-                                &"ready" => server_response = board_unlocked.serialized(),
-                                &"add" => {
-                                    board_unlocked.add_item(result.args[0].as_str(), result.args[1].as_str());
-                                    server_response = board_unlocked.serialized(); //written this way in case of wanting to change the way responses are later
+    // Handle incoming messages from the client
+    tokio::spawn({
+        let board_clone = Arc::clone(&board);
+        async move {
+            while let Some(result) = rx.next().await {
+                if let Ok(msg) = result {
+                    if msg.is_text() {
+                        let msg = msg.to_str().unwrap().to_string();
+                        if let Ok(result) = serde_json::from_str::<ClientResponse>(&msg) {
+                            println!("Client message: {:?}", result);
+                            let server_response = {
+                                
+                                let mut board_unlocked = board_clone.lock().unwrap();
+                                match &result.command[..] {
+                                    "ready" => Some(board_unlocked.serialized()),
+                                    "add" => {
+                                        board_unlocked.add_item(&result.args[0], &result.args[1]);
+                                        Some(board_unlocked.serialized())
+                                    }
+                                    "demote" => {
+                                        board_unlocked.demote_item(&result.args[0]);
+                                        Some(board_unlocked.serialized())
+                                    }
+                                    "promote" => {
+                                        board_unlocked.promote_item(&result.args[0]);
+                                        Some(board_unlocked.serialized())
+                                    }
+                                    "edit_content" => {
+                                        board_unlocked.update_item(&result.args[0], &result.args[1]);
+                                        Some(board_unlocked.serialized())
+                                    }
+                                    "remove" => {
+                                        board_unlocked.remove_item(&result.args[0]);
+                                        Some(board_unlocked.serialized())
+                                    }
+                                    _ => {
+                                        println!("Unknown input from the client");
+                                        None
+                                    }
                                 }
-                                &"demote" => {
-                                    board_unlocked.demote_item(result.args[0].as_str());
-                                    server_response = board_unlocked.serialized(); //since it's probably better to send smaller json payloads
-                                }
-                                &"promote" => {
-                                    board_unlocked.promote_item(result.args[0].as_str());
-                                    server_response = board_unlocked.serialized(); //for each individual response type
+                            };
 
-                                }
-                                &"edit_content" => {
-                                    board_unlocked.update_item(result.args[0].as_str(), result.args[1].as_str());
-                                    server_response = board_unlocked.serialized();
-                                }
-                                &"remove" => {
-                                    board_unlocked.remove_item(result.args[0].as_str());
-                                    server_response = board_unlocked.serialized();
-                                }
-                                _ => {
-                                    println!("unknown input from the client");
+                            if let Some(response) = server_response {
+                                let clients_guard = clients_clone.lock().unwrap();
+                                for client in clients_guard.iter() {
+                                    if let Err(e) = client.send(Message::text(response.clone())) {
+                                        eprintln!("Failed to send message: {}", e);
+                                    }
                                 }
                             }
                         }
-                        msg_tx.send(server_response).unwrap();
                     }
                 }
             }
         }
     });
 
-    tokio::spawn(async move {
-        while let Some(message) = msg_rx.recv().await {
-            tx.send(Message::text(message)).await.unwrap();
+    tokio::spawn({
+        let board_clone = Arc::clone(&board);
+        async move {
+            while let Some(_) = msg_rx.recv().await {
+                let serialized = {
+                    let board_unlocked = board_clone.lock().unwrap();
+                    board_unlocked.serialized()
+                };
+
+                if let Err(e) = tx.send(Message::text(&serialized)).await {
+                    eprintln!("Failed to send message: {}", e);
+                }
+            }
         }
     });
 }
