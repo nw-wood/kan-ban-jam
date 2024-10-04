@@ -86,7 +86,17 @@ body {
 	border-bottom: 3px solid;
 	border-right-color: black;
 	width: 100%;
+}
 
+#demote-box, #promote-box, #edit-content-box, #remove-item-box {
+	cursor: pointer;
+    transition: background-color 0.0s, transform 0.1s;
+	user-select: none;
+}
+
+#demote-box:active, #promote-box:active, #edit-content-box:active, #remove-item-box:active  {
+    background-color: yellow; /* Darker blue on click */
+    transform: scale(0.95);    /* Slightly reduce size on click */
 }
 
 #item-cont {

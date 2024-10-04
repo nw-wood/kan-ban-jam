@@ -1,23 +1,3 @@
-function add_new_item() {
-
-    console.log('todo: add new item');
-
-    let input_name = document.getElementById('item-name-input').value;
-    let input_content = document.getElementById('item-content-input').value;
-
-    if (input_name != '' && input_content != '') {
-        const add_item_response = {
-            command: 'add',
-            args: [input_name, input_content],
-        }
-        let req_as_json = JSON.stringify(add_item_response);
-        console.log('sending: ' + req_as_json);
-        socket.send(req_as_json);
-    } else {
-        console.log('handle empty fields complaint');
-    }
-}
-
 var htmlString = `
     <div id = "header-div"><h1 id = "board-name"></h1></div>
     <div class = "status-columns" id = "status-columns"></div>
@@ -31,6 +11,7 @@ var htmlString = `
     `;
 
 function build_board(response) {
+    console.log('building board...');
     let parser = new DOMParser();
     const doc = parser.parseFromString(htmlString, 'text/html');
     doc.getElementById('add-button').innerHTML = 'Add it?';
@@ -49,16 +30,16 @@ function build_board(response) {
             let item = response.items[current_item];
 
             if (item.status == status) {
-                console.log(item.name + ' had status ' + status);
+
                 let item_box_by_id = doc.getElementById('item-box-'+status);
                 item_box_by_id.innerHTML +=
                     '<div id="item-cont">'+
                         '<div id="item-name">'+
-                            '<div id="name-container">'+ item.name + '</div>'+
-                            '<div id ="demote-box" class="'+item.name+'">↓</div>'+
-                            '<div id ="promote-box" class="'+item.name+'">↑</div>'+
-                            '<div id ="edit-content-box" class="'+item.name+'">✎</div>'+
-                            '<div id ="remove-item-box" class="'+item.name+'">✖</div>'+
+                            '<div id ="name-container">'+ item.name + '</div>'+
+                            '<div id ="demote-box" class="'+item.name+'-demote-clicky">↓</div>'+
+                            '<div id ="promote-box" class="'+item.name+'-promote-clicky">↑</div>'+
+                            '<div id ="edit-content-box" class="'+item.name+'-edit-clicky">✎</div>'+
+                            '<div id ="remove-item-box" class="'+item.name+'-remove-clicky">✖</div>'+
                         '</div>'+
                         '<div id="item-contents">'+item.contents + '</div></div>'+
                     '</div>';
@@ -72,14 +53,90 @@ function build_board(response) {
     
 }
 
+function add_new_item() {
+
+    let input_name = document.getElementById('item-name-input').value;
+    let input_content = document.getElementById('item-content-input').value;
+
+    if (input_name != '' && input_content != '') {
+        console.log('sending add request...');
+        const response = {
+            command: 'add',
+            args: [input_name, input_content],
+        }
+        socket.send(JSON.stringify(response));
+    } else {
+        console.log('field was left empty!');
+    }
+}
+
+function demote_func(demote_box) {
+    console.log('sending demote request...');
+    let demote_box_item = demote_box.slice(0, -14);
+    const response = {
+        command: 'demote',
+        args: [demote_box_item],
+    }
+    socket.send(JSON.stringify(response));
+}
+
+function promote_func(promote_box) {
+    console.log('sending promote request...');
+    let promote_box_item = promote_box.slice(0, -15);
+    const response = {
+        command: 'promote',
+        args: [promote_box_item],
+    }
+    socket.send(JSON.stringify(response));
+}
+
+function edit_content_func(edit_content_box) {
+    console.log('sending edit content request (TODO)...');
+    let edit_content_box_item = edit_content_box.slice(0, -12);
+    const response = {
+        command: 'edit_content',
+        args: [edit_content_box, "TODO: get editted content from modal input"],
+    }
+    socket.send(JSON.stringify(response));
+}
+
+function remove_item_func(remove_item_box) {
+    console.log('sending remove item request...');
+    let remove_item_box_item = remove_item_box.slice(0, -14);
+    const response = {
+        command: 'remove',
+        args: [remove_item_box_item],
+    }
+    socket.send(JSON.stringify(response));
+}
+
 console.log('starting web socket...');
 
 const socket = new WebSocket('ws://192.168.1.169:3032/ws');
 
 socket.onmessage = function(event) {
-    console.log('incoming:', event.data);
-    build_board(JSON.parse(event.data));
-    document.getElementById('add-button').addEventListener("click", add_new_item);
+    if (event.data != '') {
+        build_board(JSON.parse(event.data));
+        
+        document.getElementById('add-button').addEventListener("click", add_new_item);
+    
+        const demote_boxes = document.querySelectorAll('#demote-box');
+        demote_boxes.forEach(box => {
+            document.getElementsByClassName(box.className)[0].addEventListener("click", () => demote_func(box.className));
+        });
+
+        const promote_boxes = document.querySelectorAll('#promote-box');
+        promote_boxes.forEach(box => document.getElementsByClassName(box.className)[0].addEventListener("click", () => promote_func(box.className)));
+
+        const edit_content_boxes = document.querySelectorAll('#edit-content-box');
+        edit_content_boxes.forEach(box => document.getElementsByClassName(box.className)[0].addEventListener("click", () => edit_content_func(box.className)));
+
+        const remove_item_boxes = document.querySelectorAll('#remove-item-box');
+        remove_item_boxes.forEach(box => document.getElementsByClassName(box.className)[0].addEventListener("click", () => remove_item_func(box.className)));
+
+    } else {
+        console.log("server ignored sent request");
+    }
 };
 socket.onopen = function() {
 
