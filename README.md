@@ -19,6 +19,9 @@ Key Features
     Asynchronous Backend: Server handles operations asynchronously for better performance
     Lightweight Design: Minimal dependencies, focused on core functionality
 
+![kan-ban-jam](/screenshot.png?raw=true "kan-ban-jam")
+
+depends on:
 ```
 tokio = { version = "1.40.0", features = ["full"] }
 serde = { version = "1.0.210", features = ["derive"] }
@@ -28,5 +31,3 @@ regex = "1.11.0"
 warp = "0.3.7"
 futures-util = "0.3.30"
 ```
-
-![kan-ban-jam](/screenshot.png?raw=true "kan-ban-jam")
