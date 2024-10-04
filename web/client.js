@@ -3,13 +3,6 @@ var htmlString = `
     <div class = "status-columns" id = "status-columns"></div>
     <br>
     <br>
-    Item Name: <input type="text" name="item-name-input-box" id="item-name-input"> Item Content: <input type="text" name="item-content-input-box" id="item-content-input">
-    <button type="button" id="add-button">Add it!</button>
-    <br>
-    <br>
-    <div id = "server-output"></div>
-    <div id = "edit-content-modal">New content: <input type = "text" name="edit-content-input-box" id="edit-content-input">
-    <button type="button" id="edit-button">Edit!</button></div>
     `;
 
 function build_board(response) {
@@ -50,11 +43,13 @@ function build_board(response) {
         }
     }
 
-    doc.getElementById('server-output').innerHTML += event.data + ' </br>';
+    //doc.getElementById('server-output').innerHTML += event.data + ' </br>';
 
-    document.getElementsByTagName('body')[0].innerHTML = doc.documentElement.outerHTML;
+    document.getElementById('client-output').innerHTML = doc.documentElement.outerHTML;
     
 }
+
+var modal_is_shown = false;
 
 function show_edit_modal(edit_content_box) {
     let modal = document.getElementById('edit-content-modal');
@@ -66,8 +61,9 @@ function show_edit_modal(edit_content_box) {
 
 function add_new_item() {
 
-    let input_name = document.getElementById('item-name-input').value;
-    let input_content = document.getElementById('item-content-input').value;
+
+    input_name = document.getElementById('item-name-input').value;
+    input_content = document.getElementById('item-content-input').value;
 
     if (input_name != '' && input_content != '') {
         console.log('sending add request...');
@@ -75,6 +71,8 @@ function add_new_item() {
             command: 'add',
             args: [input_name, input_content],
         }
+        document.getElementById('item-name-input').value = '';
+        document.getElementById('item-content-input').value = '';
         socket.send(JSON.stringify(response));
     } else {
         console.log('field was left empty!');
@@ -91,6 +89,9 @@ function edit_from_modal() {
             args: [item_selected, input_box],
         }
         socket.send(JSON.stringify(response));
+        let modal = document.getElementById('edit-content-modal');
+        modal.style.display = 'none';
+        modal_is_shown = false;
     }
 }
 
@@ -129,7 +130,7 @@ console.log('starting web socket...');
 const socket = new WebSocket('ws://192.168.1.169:3032/ws');
 
 socket.onmessage = function(event) {
-    if (event.data != '') {
+    if (event.data != '' && modal_is_shown == false) {
         console.log('data wasnt empty - ' + event.data);
         build_board(JSON.parse(event.data));
 
