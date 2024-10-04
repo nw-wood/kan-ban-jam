@@ -6,7 +6,6 @@ use std::sync::Mutex;
 use futures_util::SinkExt;
 use futures_util::StreamExt;
 use serde::Deserialize;
-use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use warp::ws::Message;
@@ -88,12 +87,6 @@ struct ClientResponse {
     args: Vec<String>,
 }
 
-#[derive(Serialize, Debug)]
-struct ServerResponse {
-    command: String,
-    args: Vec<String>,
-}
-
 async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>) {
 
     let (mut tx, mut rx) = ws.split();
@@ -112,39 +105,24 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>) {
 
                         println!("client message: {result:?}");
 
-                        let mut _server_response: String = String::new();
+                        let mut server_response: String = String::new();
 
-                        match &result.command.as_str() {
+                        if let Ok(mut board_unlocked) = board.lock() {
 
-                            &"ready" => {
-                                if let Ok(board_unlocked) = board.lock() {
-                                    let response = ServerResponse {
-                                        command: "build".to_string(),
-                                        args:  vec![board_unlocked.serialized()],
-                                    };
-                                    _server_response = serde_json::to_string(&response).unwrap();
-                                }
-                            },
-                            &"add" => {
-                                if let Ok(mut board_unlocked) = board.lock() {
+                            match &result.command.as_str() {
+
+                                &"ready" => server_response = board_unlocked.serialized(),
+                                &"add" => {
                                     board_unlocked.add_item(result.args[0].as_str(), result.args[1].as_str());
-                                    let response = ServerResponse {
-                                        command: "add".to_string(),
-                                        args:  result.args,
-                                    };
-                                    _server_response = serde_json::to_string(&response).unwrap();
+                                    server_response = board_unlocked.serialized();
                                 }
-                            }
-                            _ => {
-                                let response = ServerResponse {
-                                    command: "unknown".to_string(),
-                                    args:  vec![],
-                                };
-                                _server_response = serde_json::to_string(&response).unwrap();
+                                _ => {
+                                    println!("unknown input from the client");
+                                    //_server_response = serde_json::to_string(&response).unwrap();
+                                }
                             }
                         }
-
-                        msg_tx.send(_server_response).unwrap();
+                        msg_tx.send(server_response).unwrap();
                     }
                 }
             }

@@ -18,35 +18,39 @@ function add_new_item() {
     }
 }
 
-const socket = new WebSocket('ws://192.168.1.169:3032/ws');
+var htmlString = `
+    <div id = "header-div"><h1 id = "board-name"></h1></div>
+    <div class = "status-columns" id = "status-columns"></div>
+    <br>
+    <br>
+    Item Name: <input type="text" name="item-name-input-box" id="item-name-input"> Item Content: <input type="text" name="item-content-input-box" id="item-content-input">
+    <button type="button" id="add-button">Add it!</button>
+    <br>
+    <br>
+    <div id = "server-output"></div>
+    `;
 
-console.log('hello from js!');
+function build_board(response) {
+    let parser = new DOMParser();
+    const doc = parser.parseFromString(htmlString, 'text/html');
+    doc.getElementById('add-button').innerHTML = 'Add it?';
+    doc.getElementById('board-name').innerHTML = response.board_name;
 
-document.getElementById('add-button').addEventListener("click", add_new_item);
+    for(let current_status = 0; current_status < response.statuses.length; current_status++) {
 
-socket.onmessage = function(event) {
+        let status = response.statuses[current_status];
 
-    console.log('Message from server:', event.data);
-
-    let jsonObj = JSON.parse(event.data);
-
-    document.getElementById('board-name').innerHTML = jsonObj.board_name;
-    //TODO: on message needs to handle server responses as json instead of just assuming it's the entire board now
-    for(let current_status = 0; current_status < jsonObj.statuses.length; current_status++) {
-
-        let status = jsonObj.statuses[current_status];
-
-        let col_by_id = document.getElementById('status-columns');
+        let col_by_id = doc.getElementById('status-columns');
 
         col_by_id.innerHTML += '<div id="status-' + status + '">'+status.toUpperCase()+'<div id = "item-box-'+status+'"></div>';
 
-        for (let current_item = 0; current_item < jsonObj.items.length; current_item++) {
+        for (let current_item = 0; current_item < response.items.length; current_item++) {
 
-            let item = jsonObj.items[current_item];
+            let item = response.items[current_item];
 
             if (item.status == status) {
                 console.log(item.name + ' had status ' + status);
-                let item_box_by_id = document.getElementById('item-box-'+status);
+                let item_box_by_id = doc.getElementById('item-box-'+status);
                 item_box_by_id.innerHTML +=
                     '<div id="item-cont">'+
                         '<div id="item-name">'+
@@ -58,16 +62,25 @@ socket.onmessage = function(event) {
                         '</div>'+
                         '<div id="item-contents">'+item.contents + '</div></div>'+
                     '</div>';
-                    //modal pop up thing with text box input to change the contents of the item
-                    //check cli for more
-                    //ARE YOU SURE ABOUT THAT? confirmation modal on remove
-                    //some kind of first time 'help' dialog and cookie set to prevent it from happening again would be worth spending time on to learn
             }
         }
     }
-    document.getElementById('server-output').innerHTML += event.data + ' </br>';
-};
 
+    doc.getElementById('server-output').innerHTML += event.data + ' </br>';
+
+    document.getElementsByTagName('body')[0].innerHTML = doc.documentElement.outerHTML;
+    
+}
+
+console.log('starting web socket...');
+
+const socket = new WebSocket('ws://192.168.1.169:3032/ws');
+
+socket.onmessage = function(event) {
+    console.log('incoming:', event.data);
+    build_board(JSON.parse(event.data));
+    document.getElementById('add-button').addEventListener("click", add_new_item);
+};
 socket.onopen = function() {
 
     const ready_response = {

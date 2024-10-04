@@ -11,7 +11,7 @@ pub struct Board {
 
 impl Board {
 
-    fn new(name: &str, statuses: Vec<String>) -> Self {
+    pub fn new(name: &str, statuses: Vec<String>) -> Self {
         Self {
             board_name: name.to_string(),
             items: vec![],
@@ -24,14 +24,19 @@ impl Board {
     }
 
     pub fn serialized(&self) -> String {
-        if let Ok(json) = serde_json::to_string(self) { json }
+        if let Ok(json) = serde_json::to_string(self) 
+        { 
+            json
+        }
         else { "{}".to_string() }
     }
+
+    /* */
 
     fn say(&self, message: String) {
         println!("{}: {}", self.get_name(), message);
     }
-
+    
     pub fn open_from_file(path: &Path) -> Self {
         if let Ok(contents) = fs::read_to_string(path) {
             if let Ok(json) = serde_json::from_str::<Board>(&contents) { //WE'RE GOIN TURBO FISHIN' BOIIIZ
