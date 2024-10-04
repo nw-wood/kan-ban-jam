@@ -9,14 +9,13 @@ var htmlString = `
     <br>
     <div id = "server-output"></div>
     <div id = "edit-content-modal">New content: <input type = "text" name="edit-content-input-box" id="edit-content-input">
-    <button type="button" id="add-button">Edit!</button></div>
+    <button type="button" id="edit-button">Edit!</button></div>
     `;
 
 function build_board(response) {
-    console.log('building board...');
+    
     let parser = new DOMParser();
     const doc = parser.parseFromString(htmlString, 'text/html');
-    //doc.getElementById('add-button').innerHTML = 'Add it?';
     doc.getElementById('board-name').innerHTML = response.board_name;
 
     for(let current_status = 0; current_status < response.statuses.length; current_status++) {
@@ -80,6 +79,19 @@ function add_new_item() {
     }
 }
 
+function edit_from_modal() {
+    let input_box = document.getElementById('edit-content-input').value;
+    let item_selected = document.getElementById('edit-content-modal').className;
+    if (input_box != '') {
+        console.log('sending edit request...');
+        const response = {
+            command: 'edit_content',
+            args: [item_selected, input_box],
+        }
+        socket.send(JSON.stringify(response));
+    }
+}
+
 function demote_func(demote_box) {
     console.log('sending demote request...');
     let demote_box_item = demote_box.slice(0, -14);
@@ -100,16 +112,6 @@ function promote_func(promote_box) {
     socket.send(JSON.stringify(response));
 }
 
-function edit_content_func(edit_content_box) {
-    console.log('sending edit content request (TODO)...');
-    let edit_content_box_item = edit_content_box.slice(0, -12);
-    const response = {
-        command: 'edit_content',
-        args: [edit_content_box_item, "TODO: get editted content from modal input"],
-    }
-    socket.send(JSON.stringify(response));
-}
-
 function remove_item_func(remove_item_box) {
     console.log('sending remove item request...');
     let remove_item_box_item = remove_item_box.slice(0, -14);
@@ -120,8 +122,6 @@ function remove_item_func(remove_item_box) {
     socket.send(JSON.stringify(response));
 }
 
-
-
 console.log('starting web socket...');
 
 const socket = new WebSocket('ws://192.168.1.169:3032/ws');
@@ -131,6 +131,7 @@ socket.onmessage = function(event) {
         build_board(JSON.parse(event.data));
 
         document.getElementById('add-button').addEventListener("click", add_new_item);
+        document.getElementById('edit-button').addEventListener("click", edit_from_modal);
     
         const demote_boxes = document.querySelectorAll('#demote-box');
         demote_boxes.forEach(box => {
@@ -150,7 +151,6 @@ socket.onmessage = function(event) {
 
         document.addEventListener('click', (event) => {
             if(!modal_box.contains(event.target)) {
-                console.log("happens first");
                 modal_box.style.display = 'none';
             }
         }, true);

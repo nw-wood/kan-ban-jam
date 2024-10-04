@@ -46,6 +46,7 @@ body {
 #server-output {
 	font-size: 12px;
 	color: grey;
+	display: none;
 }
 
 #item-name {
