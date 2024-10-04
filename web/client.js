@@ -95,7 +95,7 @@ function edit_content_func(edit_content_box) {
     let edit_content_box_item = edit_content_box.slice(0, -12);
     const response = {
         command: 'edit_content',
-        args: [edit_content_box, "TODO: get editted content from modal input"],
+        args: [edit_content_box_item, "TODO: get editted content from modal input"],
     }
     socket.send(JSON.stringify(response));
 }

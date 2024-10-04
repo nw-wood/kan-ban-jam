@@ -1,5 +1,4 @@
 use crate::board::Board;
-
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -114,11 +113,27 @@ async fn handle_websocket(ws: WebSocket, board: Arc<Mutex<Board>>) {
                                 &"ready" => server_response = board_unlocked.serialized(),
                                 &"add" => {
                                     board_unlocked.add_item(result.args[0].as_str(), result.args[1].as_str());
+                                    server_response = board_unlocked.serialized(); //written this way in case of wanting to change the way responses are later
+                                }
+                                &"demote" => {
+                                    board_unlocked.demote_item(result.args[0].as_str());
+                                    server_response = board_unlocked.serialized(); //since it's probably better to send smaller json payloads
+                                }
+                                &"promote" => {
+                                    board_unlocked.promote_item(result.args[0].as_str());
+                                    server_response = board_unlocked.serialized(); //for each individual response type
+
+                                }
+                                &"edit_content" => {
+                                    board_unlocked.update_item(result.args[0].as_str(), result.args[1].as_str());
+                                    server_response = board_unlocked.serialized();
+                                }
+                                &"remove" => {
+                                    board_unlocked.remove_item(result.args[0].as_str());
                                     server_response = board_unlocked.serialized();
                                 }
                                 _ => {
                                     println!("unknown input from the client");
-                                    //_server_response = serde_json::to_string(&response).unwrap();
                                 }
                             }
                         }
