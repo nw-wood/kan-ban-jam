@@ -19,7 +19,7 @@ Key Features
 
     Real-Time Updates: Changes from any client are immediately visible to all connected users
     Asynchronous Backend: Server handles operations asynchronously for better performance
-    Lightweight Design: Minimal dependencies, focused on core functionality
+    Lightweight Design: No front end depenencies, focused on core functionality
 
 ![kan-ban-jam](/screenshot.png?raw=true "kan-ban-jam")
 
