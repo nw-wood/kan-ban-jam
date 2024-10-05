@@ -5,7 +5,7 @@ Kan-Ban-Jam Project
 What's This?
 
     A lightweight Kanban board that lets you manage tasks in real-time.
-    Built as a learning project to understand modern web development and explore how real-time applications work.
+    Built as a learning project to understand modern web development.
     Think of it as a digital version of those sticky-note boards you see in tech companies.
 
 Why Build Another Kanban Board?
